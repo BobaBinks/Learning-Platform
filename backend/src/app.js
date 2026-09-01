@@ -1,9 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
-import connectDB from "./config/db.js";
+import db from './config/db.js';
 import dns from 'dns';
-
-import db from "./config/postDB.js"
 
 dotenv.config({ path: "../.env" });
 const app = express();

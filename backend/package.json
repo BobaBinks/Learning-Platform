@@ -5,18 +5,24 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "generate": "npx drizzle-kit generate",
+    "migrate": "npx drizzle-kit migrate"
   },
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
     "dotenv": "^17.4.2",
+    "drizzle-orm": "^1.0.0-rc.4",
     "express": "^5.2.1",
     "mongoose": "^9.9.3",
-    "pg-promise": "^12.7.1"
+    "pg": "^8.23.0"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^1.0.0-rc.4",
+    "nodemon": "^3.1.14",
+    "tsx": "^4.23.13"
   }
 }

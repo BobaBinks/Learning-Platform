@@ -1,13 +1,9 @@
-import mongoose from "mongoose";
+import dotenv from "dotenv";
+import { drizzle } from 'drizzle-orm/node-postgres';
 
-const connectDB = async () => {
-    try {
-        const conn = await mongoose.connect(process.env.MONGODB_URI);
-        console.log(`MongoDB Connected: ${conn.connection.host}`);
-    } catch (error) {
-        console.error(`Error: ${error.message}`);
-        process.exit(1);
-    }
-}
+// path is relative to cwd which is /backend
+dotenv.config({ path: "../.env" });
 
-export default connectDB;
+const db = drizzle(process.env.POSTGRESQL_EXTERNAL_URL);
+
+export default db;
