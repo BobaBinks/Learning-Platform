@@ -2,13 +2,14 @@ import express from "express";
 import dotenv from "dotenv";
 import db from './config/db.js';
 import dns from 'dns';
+import userRoutes from './routes/userRoutes.js'
+
 
 dotenv.config({ path: "../.env" });
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 const app = express();
 
-// app.use("/users", userRoutes);
-
-dns.setServers(["1.1.1.1", "8.8.8.8"]);
+app.use("/users", userRoutes);
 
 const port = process.env.PORT || 3000;
 
