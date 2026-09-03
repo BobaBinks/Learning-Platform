@@ -9,7 +9,8 @@ dotenv.config({ path: "../.env" });
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 const app = express();
 
-app.use("/users", userRoutes);
+app.use(express.json());
+app.use("/api/users", userRoutes);
 
 const port = process.env.PORT || 3000;
 
