@@ -79,7 +79,7 @@ const updateUser = async (req, res) => {
         const result = validationResult(req).formatWith(errorFormatter);
 
         // checks if validation has errors
-        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() });
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array({onlyFirstError:true}) });
 
         const data = matchedData(req);
         
