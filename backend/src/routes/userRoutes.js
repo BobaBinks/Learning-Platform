@@ -1,20 +1,28 @@
 import express from "express"
 import { body, query } from "express-validator";
-import { getAllUsers, createUser, updateUser } from '../controllers/userControllers.js';
-import { emailValidationChain, passwordValidationChain } from "../utils/validationChains.js";
+import { getAllUsers, createUser, updateUser, deleteUser } from '../controllers/userControllers.js';
+import { emailValidationChain, passwordValidationChain, nameValidationChain, ageValidationChain, idValidationChain } from "../utils/validationChains.js";
 
 
 const router = express.Router();
 
 router.get("/", getAllUsers);
 
-router.post("/", createUser);
+router.post("/",
+    emailValidationChain(),
+    passwordValidationChain(),
+    ageValidationChain(),
+    nameValidationChain(), 
+    passwordValidationChain(),
+    createUser);
 
 router.put("/:id",
-    emailValidationChain(true),
-    passwordValidationChain(true),
-    body('name').optional().notEmpty().trim().isString().escape(),
-    body('age').optional().isInt({ min: 0, max: 150, allow_leading_zeroes: false }).escape(),
-    updateUser)
+    emailValidationChain({ isOptional: true }),
+    passwordValidationChain({ isOptional: true }),
+    ageValidationChain({ isOptional: true }),
+    nameValidationChain({ isOptional: true }),
+    updateUser);
+
+router.delete("/:id", idValidationChain(), deleteUser);
 
 export default router;

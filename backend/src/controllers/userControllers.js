@@ -21,33 +21,27 @@ const getAllUsers = async (req, res) => {
 
 const createUser = async (req, res) => {
     try {
-        const { name, email, password, age } = req.body;
+        const result = validationResult(req).formatWith(errorFormatter);
 
-        // basic input validation
-        if (!name || !email || !password || !age) {
-            return res.status(400).json("Invalid credentials.");
-        }
+        // checks if validation has errors
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array({onlyFirstError:true}) });
+
+        const data = matchedData(req);
 
         // check if user already exists
-        const userExist = await db.select({
-            email: usersTable.email
-        }).from(usersTable);
+        const userExist = await db.select({email: usersTable.email}).from(usersTable).where(eq(usersTable.email, data['email']));
+
 
         // if yes, return user exist error
-        if (userExist.length !== 0) {
+        if (userExist.length > 0) {
             return res.status(409).json("Failed to create user, email already in use.");
         }
 
         // hash password
-        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        data['password'] = await bcrypt.hash(data['password'], saltRounds);
 
         // if no, create new user
-        const user = await db.insert(usersTable).values({
-            name: name,
-            email: email,
-            password: hashedPassword,
-            age: age
-        });
+        const user = await db.insert(usersTable).values(data).returning({ insertedId: usersTable.id });
 
         return res.status(200).json("User created successfully.");
 
@@ -119,8 +113,29 @@ const updateUser = async (req, res) => {
     }
 }
 
+const deleteUser = async (req, res) => {
+    try {
+        const validationRes = validationResult(req).formatWith(errorFormatter);
+
+        if(!validationRes.isEmpty()){
+            return res.status(400).json({error: validationRes.array({onlyFirstError: false})});
+        }
+
+        const result = await db.delete(usersTable).where(eq(usersTable.id, req.params.id)).returning({id: usersTable.id});
+
+        if(result.length > 0)
+            return res.status(200).json(`User ID ${result[0].id} deleted successfully.`);
+
+        return res.status(200).json("User does not exist.");
+    } catch (error) {
+        console.log("Error", error);
+        return res.status(500).json("Something went wrong");
+    }
+}
+
 export {
     getAllUsers,
     createUser,
-    updateUser
+    updateUser,
+    deleteUser
 }

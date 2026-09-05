@@ -1,4 +1,4 @@
-import { body, query } from "express-validator";
+import { body, query, param } from "express-validator";
 
 const emailValidationChain = ({ fieldname = "email", isOptional = false } = {}) => {
     let emailChain = body(fieldname);
@@ -10,7 +10,6 @@ const emailValidationChain = ({ fieldname = "email", isOptional = false } = {}) 
         .trim()
         .notEmpty().withMessage("Email is empty.")
         .isEmail().withMessage("Invalid email format.")
-        .escape();
 }
 
 const passwordValidationChain = ({ fieldname = "password", isOptional = false } = {}) => {
@@ -23,10 +22,41 @@ const passwordValidationChain = ({ fieldname = "password", isOptional = false } 
     .trim()
     .notEmpty().withMessage("Password is empty.")
     .isStrongPassword().withMessage("Password is not strong enough.")
-    .escape();
+}
+
+const ageValidationChain = ({fieldname = "age", isOptional = false} = {}) => {
+    let chain = body(fieldname);
+
+    if(isOptional)
+        chain = chain.optional();
+
+    return chain
+    .isInt({ min: 0, max: 150, allow_leading_zeroes: false }).withMessage("Age must be an integer.")
+}
+
+const nameValidationChain = ({fieldname = "name", isOptional = false} = {}) => {
+    let chain = body(fieldname);
+
+    if(isOptional)
+        chain = chain.optional();
+
+    return chain
+    .trim()
+    .notEmpty().withMessage("Name is empty.")
+    .matches(/^[A-Za-z\s'-]+$/).withMessage("Name must be a string.")
+}
+
+const idValidationChain = ({fieldname = "id"} = {}) => {
+    return param(fieldname)
+    .trim()
+    .notEmpty().withMessage("Id was not provided")
+    .isInt({min: 0}).withMessage("Id is invalid.");
 }
 
 export {
     emailValidationChain,
-    passwordValidationChain
+    passwordValidationChain,
+    ageValidationChain,
+    nameValidationChain,
+    idValidationChain
 }
