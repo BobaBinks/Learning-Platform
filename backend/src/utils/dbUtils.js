@@ -1,17 +1,14 @@
 import dotenv from "dotenv";
 
-
-
 const getDatabaseURL = () => {
     switch (process.env.NODE_ENV) {
-
         case "test":
             dotenv.config({ path: "./.env.backend.test" });
             return process.env.POSTGRESQL_TEST_DATABASE_URL;
-        case "dev":
+        case "development":
             dotenv.config({ path: "./.env.backend" });
             return process.env.POSTGRESQL_EXTERNAL_URL;
-        case "prod":
+        case "production":
             // should be separate from dev
             dotenv.config({ path: "./.env.backend" });
             return process.env.POSTGRESQL_EXTERNAL_URL;

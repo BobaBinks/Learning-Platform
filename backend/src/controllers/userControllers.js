@@ -10,7 +10,12 @@ const saltRounds = 10;
 
 const getAllUsers = async (req, res) => {
     try {
-        const result = await db.select().from(usersTable);
+        const result = await db.select({
+            id: usersTable.id,
+            name: usersTable.name,
+            email: usersTable.email,
+            age: usersTable.age
+        }).from(usersTable);
 
         res.status(200).json(result);
     } catch (error) {
@@ -22,16 +27,16 @@ const getAllUsers = async (req, res) => {
 const getUser = async (req, res) => {
     const validationRes = validationResult(req).formatWith(errorFormatter);
 
-    if(!validationRes.isEmpty()){
-        return res.status(400).json({error: validationRes.array()});
+    if (!validationRes.isEmpty()) {
+        return res.status(400).json({ error: validationRes.array() });
     }
 
     const data = matchedData(req);
 
     const user = await db.select().from(usersTable).where(eq(usersTable.id, matchedData.id)).returning();
 
-    if(user.length() > 0)
-        return res.status(200).json({user: user[0]});
+    if (user.length() > 0)
+        return res.status(200).json({ user: user[0] });
 
     return res.status(400).json("User does not exist.");
 }
@@ -41,12 +46,12 @@ const createUser = async (req, res) => {
         const result = validationResult(req).formatWith(errorFormatter);
 
         // checks if validation has errors
-        if (!result.isEmpty()) return res.status(400).json({ errors: result.array({onlyFirstError:true}) });
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array({ onlyFirstError: true }) });
 
         const data = matchedData(req);
 
         // check if user already exists
-        const userExist = await db.select({email: usersTable.email}).from(usersTable).where(eq(usersTable.email, data['email']));
+        const userExist = await db.select({ email: usersTable.email }).from(usersTable).where(eq(usersTable.email, data['email']));
 
 
         // if yes, return user exist error
@@ -90,20 +95,20 @@ const updateUser = async (req, res) => {
         const result = validationResult(req).formatWith(errorFormatter);
 
         // checks if validation has errors
-        if (!result.isEmpty()) return res.status(400).json({ errors: result.array({onlyFirstError:true}) });
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array({ onlyFirstError: true }) });
 
         const data = matchedData(req);
 
         // extract fields to be updated from data
         var fieldsToUpdate = {}
 
-        if (Object.hasOwn(data,'name')) fieldsToUpdate['name'] = data['name'];
+        if (Object.hasOwn(data, 'name')) fieldsToUpdate['name'] = data['name'];
 
-        if (Object.hasOwn(data,'email')) fieldsToUpdate['email'] = data['email'];
+        if (Object.hasOwn(data, 'email')) fieldsToUpdate['email'] = data['email'];
 
-        if (Object.hasOwn(data,'age')) fieldsToUpdate['age'] = data['age'];
+        if (Object.hasOwn(data, 'age')) fieldsToUpdate['age'] = data['age'];
 
-        if (Object.hasOwn(data,'password')) {
+        if (Object.hasOwn(data, 'password')) {
             // hash new password
             const hashedPassword = await bcrypt.hash(data['password'], saltRounds);
             fieldsToUpdate['password'] = hashedPassword;
@@ -132,15 +137,15 @@ const deleteUser = async (req, res) => {
     try {
         const validationRes = validationResult(req).formatWith(errorFormatter);
 
-        if(!validationRes.isEmpty()){
-            return res.status(400).json({error: validationRes.array({onlyFirstError: false})});
+        if (!validationRes.isEmpty()) {
+            return res.status(400).json({ error: validationRes.array({ onlyFirstError: false }) });
         }
 
         const data = matchedData(req);
 
-        const result = await db.delete(usersTable).where(eq(usersTable.id, data)).returning({id: usersTable.id});
+        const result = await db.delete(usersTable).where(eq(usersTable.id, data)).returning({ id: usersTable.id });
 
-        if(result.length > 0)
+        if (result.length > 0)
             return res.status(200).json(`User ID ${result[0].id} deleted successfully.`);
 
         return res.status(200).json("User does not exist.");

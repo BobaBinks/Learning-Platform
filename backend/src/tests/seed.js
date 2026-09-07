@@ -7,8 +7,8 @@ const resetAndSeed = async () => {
     // clear/reset the table before test
     await db.delete(usersTable);
     await db.insert(usersTable).values([
-        { name: "Alice", email: "alice@test.com", password: "password1", age: 25 },
-        { name: "Bob", email: "bob@test.com", password: "password2", age: 30 },
+        { name: "Alice", email: "alice@test.com", password: "h@shedPassword1", age: 25 },
+        { name: "Bob", email: "bob@test.com", password: "h@shedPassword2", age: 30 },
     ]);
 }
 
