@@ -5,7 +5,7 @@ import dns from 'dns';
 import userRoutes from './routes/userRoutes.js'
 
 
-dotenv.config({ path: "../.env" });
+// dotenv.config({ path: "./.env.backend" });
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 const app = express();
 
@@ -23,11 +23,4 @@ if (db) {
     console.log("Could not connect to database!");
 }
 
-
-
-// connect to mongodb
-// connectDB().then(() => {
-//     app.listen(port, () => {
-//         console.log(`Server is running on port ${port}`);
-//     })
-// })
+export default app;

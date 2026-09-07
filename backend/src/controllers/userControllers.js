@@ -12,11 +12,28 @@ const getAllUsers = async (req, res) => {
     try {
         const result = await db.select().from(usersTable);
 
-        res.status(200).json({ "users": result });
+        res.status(200).json(result);
     } catch (error) {
         console.log("Error", error);
         return res.status(500).json("Something went wrong");
     }
+}
+
+const getUser = async (req, res) => {
+    const validationRes = validationResult(req).formatWith(errorFormatter);
+
+    if(!validationRes.isEmpty()){
+        return res.status(400).json({error: validationRes.array()});
+    }
+
+    const data = matchedData(req);
+
+    const user = await db.select().from(usersTable).where(eq(usersTable.id, matchedData.id)).returning();
+
+    if(user.length() > 0)
+        return res.status(200).json({user: user[0]});
+
+    return res.status(400).json("User does not exist.");
 }
 
 const createUser = async (req, res) => {
@@ -76,8 +93,6 @@ const updateUser = async (req, res) => {
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array({onlyFirstError:true}) });
 
         const data = matchedData(req);
-        
-        console.log("Data:", data);
 
         // extract fields to be updated from data
         var fieldsToUpdate = {}
@@ -121,7 +136,9 @@ const deleteUser = async (req, res) => {
             return res.status(400).json({error: validationRes.array({onlyFirstError: false})});
         }
 
-        const result = await db.delete(usersTable).where(eq(usersTable.id, req.params.id)).returning({id: usersTable.id});
+        const data = matchedData(req);
+
+        const result = await db.delete(usersTable).where(eq(usersTable.id, data)).returning({id: usersTable.id});
 
         if(result.length > 0)
             return res.status(200).json(`User ID ${result[0].id} deleted successfully.`);
@@ -135,6 +152,7 @@ const deleteUser = async (req, res) => {
 
 export {
     getAllUsers,
+    getUser,
     createUser,
     updateUser,
     deleteUser
