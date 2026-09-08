@@ -31,7 +31,7 @@ const ageValidationChain = ({fieldname = "age", isOptional = false} = {}) => {
         chain = chain.optional();
 
     return chain
-    .isInt({ min: 0, max: 150, allow_leading_zeroes: false }).withMessage("Age must be an integer.")
+    .isInt({ min: 0, max: 150, allow_leading_zeroes: false }).withMessage("Age must be a valid integer.")
 }
 
 const nameValidationChain = ({fieldname = "name", isOptional = false} = {}) => {

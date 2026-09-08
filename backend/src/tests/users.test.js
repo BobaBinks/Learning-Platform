@@ -3,11 +3,14 @@ import request from 'supertest';
 import app from '../app.js';
 import { resetAndSeed, numOfUsers } from './seed.js';
 import db from '../config/db.js';
+import { measureMemory } from 'vm';
 
+// before each it block
 beforeEach(async () => {
   await resetAndSeed();
 })
 
+// after each it block
 afterEach(() => {
   vi.resetAllMocks();
 })
@@ -70,13 +73,112 @@ describe('POST /users/', () => {
     expect(res.status).toEqual(409);
   })
 
+  // password does not meet strength requirements
+  it('returns status code 400 and error message if user password failed to meet strength requirement', async () => {
+    const payload = { name: "Bob", email: "bob@test.com", password: "hashedpassword", age: 30 };
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-  // it('returns status code 400 if user gave invalid credentials)
-  // not strong password
+      expect(res.status).toEqual(400);
+      const keywords = ['password', 'not', 'strong', 'enough'];
+      const message = res.body.errors[0].toLowerCase();
+      expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
+
+  // password is empty
+  it('returns status code 400 and error message if user password is empty', async () => {
+    const payload = { name: "Bob", email: "bob@test.com", password: "", age: 30 };
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+      expect(res.status).toEqual(400);
+      const keywords = ['password', 'empty'];
+      const message = res.body.errors[0].toLowerCase();
+      expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
+  
   // wrong email format
-  // invalid age
-  // name
+    it('returns status code 400 and error message if user email is not valid format', async () => {
+    const payload = { name: "Bob", email: "bobtest.com", password: "h@shedPassword1", age: 30 };
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
+      expect(res.status).toEqual(400);
+      const keywords = ['email', 'invalid', 'format'];
+      const message = res.body.errors[0].toLowerCase();
+      expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
+
+  // email is empty
+  it('returns status code 400 and error message if user email is empty', async () => {
+    const payload = { name: "Bob", email: "", password: "h@shedPassword1", age: 30 };
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+      expect(res.status).toEqual(400);
+      const keywords = ['email', 'empty'];
+      const message = res.body.errors[0].toLowerCase();
+      expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
+
+  // invalid age
+  it('returns status code 400 and error message if user age is not valid', async () => {
+    const payload = { name: "Bob", email: "bob@test.com", password: "h@shedPassword1", age: -2 };
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+      expect(res.status).toEqual(400);
+      const keywords = ['age', 'valid', 'integer'];
+      const message = res.body.errors[0].toLowerCase();
+      expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
+
+  // invalid name
+  it('returns status code 400 and error message if user name is not valid', async () => {
+    const payload = { name: "2", email: "bob@test.com", password: "h@shedPassword1", age: 26 };
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+      expect(res.status).toEqual(400);
+      const keywords = ['name', 'string'];
+      const message = res.body.errors[0].toLowerCase();
+      expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
+
+    // invalid name
+  it('returns status code 400 and error message if user name is empty', async () => {
+    const payload = { name: "", email: "bob@test.com", password: "h@shedPassword1", age: 26 };
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+      expect(res.status).toEqual(400);
+      const keywords = ['name', 'empty'];
+      const message = res.body.errors[0].toLowerCase();
+      expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
+
+  // check if password is hashed
 })
 
 // describe('GET /users/', ()=>{

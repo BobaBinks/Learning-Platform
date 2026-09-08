@@ -17,10 +17,10 @@ router.post("/",
     createUser);
 
 router.put("/:id",
+    nameValidationChain({ isOptional: true }),
     emailValidationChain({ isOptional: true }),
     passwordValidationChain({ isOptional: true }),
     ageValidationChain({ isOptional: true }),
-    nameValidationChain({ isOptional: true }),
     updateUser);
 
 router.delete("/:id", idValidationChain(), deleteUser);
