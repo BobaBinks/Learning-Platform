@@ -1,5 +1,5 @@
 import db from "../config/db.js";
-import bcrypt, { hashSync } from 'bcrypt';
+import bcrypt from 'bcrypt';
 import errorFormatter from "../utils/errorFormatter.js";
 
 import { validationResult, matchedData } from "express-validator";

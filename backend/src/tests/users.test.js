@@ -4,6 +4,9 @@ import app from '../app.js';
 import { resetAndSeed, numOfUsers } from './seed.js';
 import db from '../config/db.js';
 import { measureMemory } from 'vm';
+import bcrypt from 'bcrypt';
+import { eq } from "drizzle-orm";
+import { usersTable } from '../db/schema.js';
 
 // before each it block
 beforeEach(async () => {
@@ -25,7 +28,7 @@ describe('GET /users/', () => {
 
   it('returns status code 500 when database fails', async () => {
     vi.spyOn(db, 'select').mockImplementation(() => {
-      throw new Error("Simulated Database Error");
+      throw new Error("Simulated Database Failed To Retrieve Users Error");
     })
 
     const res = await request(app).get(baseUserEndpoint);
@@ -179,6 +182,39 @@ describe('POST /users/', () => {
   })
 
   // check if password is hashed
+  it('password should not be stored in plaintext and should be hashed', async () => {
+    const payload = { name: "Marcus", email: "bob2@test.com", password: "h@shedPassword1", age: 26 };
+    const result = await request(app)
+    .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    const user = await db.select({password: usersTable.password}).from(usersTable).where(eq(usersTable.email, payload.email));
+
+    const savedPassword = user[0].password;
+
+    // ensure it's not stored as plaintext, just for easier diagnosis because a failure on bcrypt compare could mean anything.
+    expect(payload.password).not.toBe(savedPassword);
+
+    // check if the password was hashed.
+    expect(await bcrypt.compare(payload.password, savedPassword)).toBe(true);
+  })
+
+  it('returns status code 500 when server fails', async () => {
+    vi.spyOn(db, 'insert').mockImplementation(() => {
+      throw new Error("Simulated Database Failed To Insert User Error");
+    })
+
+    const payload = { name: "Marcus", email: "bob2@test.com", password: "h@shedPassword1", age: 26 };
+    const result = await request(app)
+    .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    expect(result.status).toBe(500);
+  })
 })
 
 // describe('GET /users/', ()=>{
