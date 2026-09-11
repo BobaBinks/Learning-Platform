@@ -25,20 +25,31 @@ const getAllUsers = async (req, res) => {
 }
 
 const getUser = async (req, res) => {
-    const validationRes = validationResult(req).formatWith(errorFormatter);
+    try {
+        const validationRes = validationResult(req).formatWith(errorFormatter);
 
-    if (!validationRes.isEmpty()) {
-        return res.status(400).json({ error: validationRes.array() });
+        if (!validationRes.isEmpty()) {
+            return res.status(400).json({ error: validationRes.array() });
+        }
+
+        const data = matchedData(req);
+
+        const user = await db.select({
+            id: usersTable.id,
+            name: usersTable.name,
+            email: usersTable.email,
+            age: usersTable.age,
+        }).from(usersTable).where(eq(usersTable.id, data.id));
+
+        if (user.length > 0)
+            return res.status(200).json({ "user": user[0] });
+
+        return res.status(400).json("User does not exist.");
+    } catch (error) {
+        console.log("Error", error);
+        return res.status(500).json("Something went wrong");
     }
 
-    const data = matchedData(req);
-
-    const user = await db.select().from(usersTable).where(eq(usersTable.id, matchedData.id)).returning();
-
-    if (user.length() > 0)
-        return res.status(200).json({ user: user[0] });
-
-    return res.status(400).json("User does not exist.");
 }
 
 const createUser = async (req, res) => {
@@ -65,7 +76,9 @@ const createUser = async (req, res) => {
         // if no, create new user
         const user = await db.insert(usersTable).values(data).returning({ insertedId: usersTable.id });
 
-        return res.status(200).json("User created successfully.");
+        if (user.length > 0)
+            return res.status(200).json({ "message": "User created successfully.", "id": user[0].insertedId });
+        return res.status(400).json({ "message": "Failed to create user." });
 
     } catch (error) {
         console.log("Error", error);

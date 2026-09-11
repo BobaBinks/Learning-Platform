@@ -49,7 +49,6 @@ const nameValidationChain = ({fieldname = "name", isOptional = false} = {}) => {
 const idValidationChain = ({fieldname = "id"} = {}) => {
     return param(fieldname)
     .trim()
-    .notEmpty().withMessage("Id was not provided")
     .isInt({min: 0}).withMessage("Id is invalid.");
 }
 

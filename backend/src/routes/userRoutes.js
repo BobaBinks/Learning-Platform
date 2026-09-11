@@ -1,12 +1,14 @@
 import express from "express"
 import { body, query } from "express-validator";
-import { getAllUsers, createUser, updateUser, deleteUser } from '../controllers/userControllers.js';
+import { getAllUsers, createUser, updateUser, deleteUser, getUser } from '../controllers/userControllers.js';
 import { emailValidationChain, passwordValidationChain, nameValidationChain, ageValidationChain, idValidationChain } from "../utils/validationChains.js";
 
 
 const router = express.Router();
 
 router.get("/", getAllUsers);
+
+router.get("/:id",idValidationChain(), getUser);
 
 router.post("/",
     emailValidationChain(),
