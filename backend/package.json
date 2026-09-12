@@ -8,7 +8,8 @@
     "generate": "npx drizzle-kit generate",
     "migrate": "npx drizzle-kit migrate",
     "test": "cross-env NODE_ENV=test PORT=5000 vitest",
-    "populateDB": "cross-env NODE_ENV=test PORT=5000 node src/utils/populateDb.js"
+    "test_populateDB": "cross-env NODE_ENV=test PORT=5000 node src/utils/populateDb.js",
+    "development_populateDB": "cross-env NODE_ENV=development PORT=5000 node src/utils/populateDb.js"
   },
   "author": "",
   "license": "ISC",

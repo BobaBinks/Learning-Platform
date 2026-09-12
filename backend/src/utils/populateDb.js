@@ -3,7 +3,16 @@ import { usersTable, gendersTable, rolesTable } from "../db/schema.js";
 
 const popDb = async () => {
     try {
-        // let res = await db.update(usersTable).set({rolesId: 2})
+        let res = await db.insert(gendersTable).values([
+            { name: "MALE"},
+            { name: "FEMALE"}
+        ])
+
+        res = await db.insert(rolesTable).values([
+            {name: "ADMIN"},
+            {name: "STUDENT"},
+            {name: "TEACHER"}
+        ])
     } catch (error) {
         console.log(error);
     }
