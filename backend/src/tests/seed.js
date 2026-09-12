@@ -1,11 +1,11 @@
 import db from '../config/db.js';
 import { usersTable, gendersTable, rolesTable } from '../db/schema.js';
+import { createRandomUser } from './factories/userFactory.js';
 import { eq } from 'drizzle-orm';
+import { faker } from '@faker-js/faker';
 
 let roles;
 let genders;
-
-const numOfUsers = 2;
 
 const reset = async ()=>{
     await db.delete(usersTable)
@@ -22,10 +22,9 @@ const resetAndSeed = async () => {
 
     genders = await populateGendersTable();
 
-    await db.insert(usersTable).values([
-        { name: "Alice", email: "alice@test.com", password: "h@shedPassword1", rolesId: roles.student.id, genderId: genders.female.id, age: 25 },
-        { name: "Bob", email: "bob@test.com", password: "h@shedPassword2", rolesId: roles.teacher.id, age: 30 },
-    ]);
+    const res = await db.insert(usersTable).values(faker.helpers.multiple(createRandomUser, { count: 2})).returning()
+
+    console.log("Users Inserted: ", res[0]);
 }
 
 const populateRolesTable = async () =>{
@@ -68,9 +67,10 @@ const getRoles = () =>{
     return roles;
 }
 
+
+
 export {
     resetAndSeed,
-    numOfUsers,
     getRoles,
-    getGenders
+    getGenders,
 }

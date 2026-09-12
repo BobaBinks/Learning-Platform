@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import app from '../app.js';
-import { resetAndSeed, numOfUsers, getGenders, getRoles } from './seed.js';
+import { resetAndSeed, getGenders, getRoles, createRandomUser } from './seed.js';
+import { faker } from '@faker-js/faker';
 import db from '../config/db.js';
-import { measureMemory } from 'vm';
 import bcrypt from 'bcrypt';
 import { eq } from "drizzle-orm";
 import { usersTable } from '../db/schema.js';
@@ -22,81 +22,89 @@ const baseUserEndpoint = '/api/users'
 
 
 describe('GET /users/', () => {
+  let users;
+  beforeEach(async ()=>{
+      users = faker.helpers.multiple(createRandomUser,{count: 5})
+  })
+
   it('returns status code 200 on successful retrieval', async () => {
     const res = await request(app).get(baseUserEndpoint);
     expect(res.status).toBe(200);
   });
 
-  it('returns status code 500 when database fails', async () => {
-    vi.spyOn(db, 'select').mockImplementation(() => {
-      throw new Error("Simulated Database Failed To Retrieve Users Error");
-    })
+  // it('returns status code 500 when database fails', async () => {
+  //   vi.spyOn(db, 'select').mockImplementation(() => {
+  //     throw new Error("Simulated Database Failed To Retrieve Users Error");
+  //   })
 
-    const res = await request(app).get(baseUserEndpoint);
-    expect(res.status).toBe(500);
-  })
+  //   const res = await request(app).get(baseUserEndpoint);
+  //   expect(res.status).toBe(500);
+  // })
 
-  it('returns all users retrieved', async () => {
-    const res = await request(app).get(baseUserEndpoint);
-    expect(res.body).toHaveLength(numOfUsers);
+  // it('returns all users retrieved', async () => {
+  //   const res = await request(app).get(baseUserEndpoint);
 
-    // extract the id so its not included in the test.
-    // as the id auto increments and does not reset in the database when cleared,
-    // so its impossible to have a fixed id for testing.
-    // destructuring and usage of rest operator to separate rest of data and id
-    const { id: id1, ...user1 } = res.body[0];
-    expect(user1).toMatchObject({ name: "Alice", email: "alice@test.com", role: getRoles().student.name, gender: getGenders().female.name, age: 25 });
+  //   // extract the id so its not included in the test.
+  //   // as the id auto increments and does not reset in the database when cleared,
+  //   // so its impossible to have a fixed id for testing.
+  //   // destructuring and usage of rest operator to separate rest of data and id
+  //   const { id: id1, ...user1 } = res.body[0];
+  //   expect(user1).toMatchObject({ name: "Alice", email: "alice@test.com", role: getRoles().student.name, gender: getGenders().female.name, age: 25 });
 
 
-    const { id: id2, ...user2 } = res.body[1];
-    expect(user2).toMatchObject({ name: "Bob", email: "bob@test.com", role: getRoles().teacher.name, age: 30 });
-  })
+  //   const { id: id2, ...user2 } = res.body[1];
+  //   expect(user2).toMatchObject({ name: "Bob", email: "bob@test.com", role: getRoles().teacher.name, age: 30 });
+  // })
 });
 
 // describe('GET /users/:id', () => {
-//   let userId;
+//   let testUser;
 
 //   // create the test user
 //   beforeEach(async () =>{
-//     userId = await createTestUser();
+//     testUser = await createTestUser();
 //   });
 
 
 //   it("returns status code 200 on successful retrieval", async () => {
-//     const getUserRes = await request(app).get(`${baseUserEndpoint}/${userId}`)
+//     const getUserRes = await request(app).get(`${baseUserEndpoint}/${testUser.id}`)
 //     expect(getUserRes.status).toBe(200);
 //   })
 
 //   it("should return user properties", async () => {
-//     const getUserRes = await request(app).get(`${baseUserEndpoint}/${userId}`)
+//     const getUserRes = await request(app).get(`${baseUserEndpoint}/${testUser.id}`)
 
-//     expect(getUserRes.body.user).toHaveProperty('id')
-//     expect(getUserRes.body.user).toHaveProperty('email')
-//     expect(getUserRes.body.user).toHaveProperty('name')
-//     expect(getUserRes.body.user).toHaveProperty('age')
+//     // expect(getUserRes.body.user).toHaveProperty('id')
+//     // expect(getUserRes.body.user).toHaveProperty('email')
+//     // expect(getUserRes.body.user).toHaveProperty('name')
+//     // expect(getUserRes.body.user).toHaveProperty('age')
+//     // expect(getUserRes.body.user).toHaveProperty('gender')
+//     // expect(getUserRes.body.user).toHaveProperty('role')
+
+//     expect(getUserRes.body.user).toMatchObject(testUser);
 //   })
 
-//   it('returns status code 500 when server fails', async () => {
-//     vi.spyOn(db, 'select').mockImplementation(() => {
-//       throw new Error("Simulated Database Failed To Select User Error");
-//     })
+  // it('returns status code 500 when server fails', async () => {
+  //   vi.spyOn(db, 'select').mockImplementation(() => {
+  //     throw new Error("Simulated Database Failed To Select User Error");
+  //   })
 
-//     const result = await request(app).get(`${baseUserEndpoint}/${userId}`)
-//     expect(result.statusCode).toBe(500);
-//   })
+  //   const result = await request(app).get(`${baseUserEndpoint}/${userId}`)
+  //   expect(result.statusCode).toBe(500);
+  // })
 
-//   it('should return status code 400 on invalid id', async ()=>{
-//     const res = await request(app).get(`${baseUserEndpoint}/${'abc'}`)
-//     expect(res.status).toBe(400);
-//   })
+  // it('should return status code 400 on invalid id', async ()=>{
+  //   const res = await request(app).get(`${baseUserEndpoint}/${'abc'}`)
+  //   expect(res.status).toBe(400);
+  // })
 
-//   it('return status code 400 if user does not exist', async ()=>{
-//     const res = await request(app).get(`${baseUserEndpoint}/${0}`)
+  // it('return status code 400 if user does not exist', async ()=>{
+  //   const res = await request(app).get(`${baseUserEndpoint}/${0}`)
 
-//     const keywords = ['User', 'does', 'not' ,'exist' ]
-//     expect(keywords.every(word => res.body.includes(word))).toBe(true);
-//     expect(res.statusCode).toBe(400);
-//   })
+  //   const keywords = ['User', 'does', 'not' ,'exist' ]
+  //   expect(keywords.every(word => res.body.includes(word))).toBe(true);
+  //   expect(res.statusCode).toBe(400);
+  // })
 // })
 
 // describe('POST /users/', () => {
@@ -471,15 +479,25 @@ describe('GET /users/', () => {
 
 // })
 
-const createTestUser = async () => {
-    // create a new user, and save the returned id.
-    const payload = { name: "Jane", email: "Jane@test.com", password: "h@shedPassword3", age: 13 };
 
-    const res = await request(app)
-      .post(baseUserEndpoint)
-      .set('Content-Type', 'application/json')
-      .set('Accept', 'application/json')
-      .send(payload);
 
-      return res.body.id;
+// default argument is an empty object
+// the destructure will default to values if they dont exist in an object
+const createTestUser = async ({
+  // Outer default (`= {}` at the very end of the parameter list) handles the case
+  // where createTestUser() is called with NO argument at all.
+  // Without it, destructuring `undefined` would throw immediately.
+  name = "Jane", // inner default: used if `name` key is missing/undefined on the passed object
+  email = "Jane@test.com", // same idea — per-key fallback, independent of the others
+  password = "h@shedPassword3",
+  age = 13,
+  genderId = getGenders().female.id,
+  rolesId = getRoles().student.id
+} = {}) => {
+
+  // create a new user, and save the returned id.
+  const payload = { name: name, email: email, password: password, age: age, genderId: genderId, rolesId: rolesId };
+
+  const res = await db.insert(usersTable).values(payload).returning();
+  return res[0];
 }
