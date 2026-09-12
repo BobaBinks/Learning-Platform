@@ -156,12 +156,12 @@ const deleteUser = async (req, res) => {
 
         const data = matchedData(req);
 
-        const result = await db.delete(usersTable).where(eq(usersTable.id, data)).returning({ id: usersTable.id });
+        const result = await db.delete(usersTable).where(eq(usersTable.id, data.id)).returning({ id: usersTable.id });
 
         if (result.length > 0)
             return res.status(200).json(`User ID ${result[0].id} deleted successfully.`);
 
-        return res.status(200).json("User does not exist.");
+        return res.status(404).json("User does not exist.");
     } catch (error) {
         console.log("Error", error);
         return res.status(500).json("Something went wrong");

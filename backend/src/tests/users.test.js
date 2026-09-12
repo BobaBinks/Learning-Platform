@@ -43,7 +43,6 @@ describe('GET /users/', () => {
     // extract the id so its not included in the test.
     // as the id auto increments and does not reset in the database when cleared,
     // so its impossible to have a fixed id for testing.
-
     // destructuring and usage of rest operator to separate rest of data and id
     const { id: id1, ...user1 } = res.body[0];
     expect(user1).toEqual({ name: "Alice", email: "alice@test.com", age: 25 });
@@ -282,20 +281,195 @@ describe('POST /users/', () => {
   })
 })
 
+describe('PUT /users/:id', () => {
+  let userId;
+  beforeEach(async () => {
+    userId = await createTestUser();
+  })
 
-// describe('PUT /users/:id', () => {
-//   it('updates a user and returns 200', async () => {
-//     const res = await request(app).put('/api/users/1').send({ name: 'Marcus' });
-//     expect(res.status).toBe(200);
-//   });
+//#region validation
+  // returns status code 400 on validation errors
+  it('handles name validation error', async () => {
+    const payload = { "name": "name1" }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${userId}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-//   // it('user name should be updated correctly.', async () => {
-//   //   const res = await request(app).get('/api/users/1');
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toHaveProperty('errors')
+  });
 
-//   //   console.log("Result: ", res);
-//   //   expect(res.status).toBe(200);
-//   // });
-// });
+  // returns status code 400 on validation errors
+  it('handles age validation error', async () => {
+    const payload = { "age": "a" }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${userId}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toHaveProperty('errors')
+  });
+
+  // returns status code 400 on validation errors
+  it('handles email validation error', async () => {
+    const payload = { "email": "aa.com" }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${userId}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toHaveProperty('errors')
+  });
+
+  // returns status code 400 on validation errors
+  it('handles password validation error', async () => {
+    const payload = { "password": "password" }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${userId}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toHaveProperty('errors')
+  });
+//#endregion
+  
+  // returns status 404 if user was not found
+  it('returns status 404 if user was not found', async () => {
+    const payload = { "name": "marcus" }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/0`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+      expect(res.statusCode).toBe(404);
+      expect(res.body).toHaveProperty('message')
+  });
+
+  // returns status 200 if user was found
+  it('returns status 200 if user was found', async () => {
+    const payload = { name: 'Marcus' }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${userId}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+    expect(res.status).toBe(200);
+  });
+  
+  // check if fields are updated
+  it('check if fields are updated', async () => {
+    const payload = { 'name': 'Marcus', 'password': 'HashedP@assword2', 'age': 32, 'email': 'good@email.com' }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${userId}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    expect(res.status).toBe(200);
+
+    // check updates took place
+    const updatedUserRetrievalRes = await db.select({
+      'name': usersTable.name,
+      'password': usersTable.password,
+      'age': usersTable.age,
+      'email': usersTable.email
+    }).from(usersTable).where(eq(usersTable.id, userId))
+
+    const user = updatedUserRetrievalRes[0]
+    expect(user.age).toBe(payload.age)
+    expect(user.email).toBe(payload.email)
+    expect(user.name).toBe(payload.name)
+
+    // check if password is rehashed
+    expect(await bcrypt.compare(payload.password, user.password)).toBe(true)
+  });
+
+  // ensure correct fields are only updated
+  it('ensure correct fields are only updated', async () => {
+    // retrieve original user data
+    const originalRes = await db.select().from(usersTable).where(eq(usersTable.id, userId))
+
+    const originalUserData = originalRes[0]
+
+    const payload = { 'name': 'Marcus' }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${userId}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    expect(res.status).toBe(200);
+
+    // check updates took place
+    const updatedUserRetrievalRes = await db.select({
+      'name': usersTable.name,
+      'password': usersTable.password,
+      'age': usersTable.age,
+      'email': usersTable.email
+    }).from(usersTable).where(eq(usersTable.id, userId))
+
+
+    const user = updatedUserRetrievalRes[0]
+    expect(user.age).toBe(originalUserData.age)
+    expect(user.email).toBe(originalUserData.email)
+    expect(user.name).toBe(payload.name)
+    expect(user.password).toBe(originalUserData.password)
+  });
+});
+
+describe('DELETE /users/:id', () => {
+  let userId;
+  beforeEach(async () =>{
+    userId = await createTestUser();
+  })
+
+  // return status 200 on successful delete
+  it('return status 200 on successful delete', async ()=>{
+    const res = await request(app).delete(`${baseUserEndpoint}/${userId}`);
+
+    expect(res.status).toBe(200);
+
+    // ensure user deleted from database
+    const attemptRes = await db.select().from(usersTable).where(eq(usersTable.id, userId))
+
+    expect(attemptRes.length).toBe(0)
+  })
+
+  // return status 404 if user not found
+  it('return status 404 if user not found', async ()=>{
+    const res = await request(app).delete(`${baseUserEndpoint}/0`);
+
+    expect(res.status).toBe(404);
+  })
+
+  // return status 400 if id validation failed
+  it('return status 400 if id validation failed', async ()=>{
+    const res = await request(app).delete(`${baseUserEndpoint}/a`);
+
+    expect(res.status).toBe(400);
+  })
+
+  // expect status 500 if database failure
+  it('expect status 500 if database failure', async ()=>{
+    vi.spyOn(db, 'delete').mockImplementation(()=>{
+      return new Error("Simulated Database Failed To Delete User Error")
+    })
+
+    const res = await request(app).delete(`${baseUserEndpoint}/${userId}`);
+
+    expect(res.status).toBe(500);
+  })
+
+})
 
 const createTestUser = async () => {
     // create a new user, and save the returned id.
