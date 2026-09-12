@@ -4,7 +4,7 @@ import errorFormatter from "../utils/errorFormatter.js";
 
 import { validationResult, matchedData } from "express-validator";
 import { eq } from "drizzle-orm";
-import { usersTable } from "../db/schema.js"
+import { usersTable, gendersTable, rolesTable } from "../db/schema.js"
 
 const saltRounds = 10;
 
@@ -14,8 +14,12 @@ const getAllUsers = async (req, res) => {
             id: usersTable.id,
             name: usersTable.name,
             email: usersTable.email,
-            age: usersTable.age
-        }).from(usersTable);
+            age: usersTable.age,
+            role: rolesTable.name,
+            gender: gendersTable.name
+        }).from(usersTable)
+            .leftJoin(rolesTable, eq(usersTable.rolesId, rolesTable.id))
+            .leftJoin(gendersTable, eq(usersTable.genderId, gendersTable.id))
 
         res.status(200).json(result);
     } catch (error) {
