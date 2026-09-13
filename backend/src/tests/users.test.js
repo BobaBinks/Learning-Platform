@@ -8,9 +8,12 @@ import bcrypt from 'bcrypt';
 import { eq } from "drizzle-orm";
 import { usersTable } from '../db/schema.js';
 
+
+let users;
+
 // before each it block
 beforeEach(async () => {
-  await resetAndSeed();
+  users = await resetAndSeed();
 })
 
 // after each it block
@@ -22,9 +25,9 @@ const baseUserEndpoint = '/api/users'
 
 
 describe('GET /users/', () => {
-  let users;
   beforeEach(async ()=>{
-      users = faker.helpers.multiple(createRandomUser,{count: 5})
+      users = await resetAndSeed()
+      console.log("Users: ", users)
   })
 
   it('returns status code 200 on successful retrieval', async () => {
@@ -32,29 +35,32 @@ describe('GET /users/', () => {
     expect(res.status).toBe(200);
   });
 
-  // it('returns status code 500 when database fails', async () => {
-  //   vi.spyOn(db, 'select').mockImplementation(() => {
-  //     throw new Error("Simulated Database Failed To Retrieve Users Error");
-  //   })
+  it('returns status code 500 when database fails', async () => {
+    vi.spyOn(db, 'select').mockImplementation(() => {
+      throw new Error("Simulated Database Failed To Retrieve Users Error");
+    })
 
-  //   const res = await request(app).get(baseUserEndpoint);
-  //   expect(res.status).toBe(500);
-  // })
+    const res = await request(app).get(baseUserEndpoint);
+    expect(res.status).toBe(500);
+  })
 
-  // it('returns all users retrieved', async () => {
-  //   const res = await request(app).get(baseUserEndpoint);
+  it('returns all users retrieved', async () => {
+    const res = await request(app).get(baseUserEndpoint);
 
-  //   // extract the id so its not included in the test.
-  //   // as the id auto increments and does not reset in the database when cleared,
-  //   // so its impossible to have a fixed id for testing.
-  //   // destructuring and usage of rest operator to separate rest of data and id
-  //   const { id: id1, ...user1 } = res.body[0];
-  //   expect(user1).toMatchObject({ name: "Alice", email: "alice@test.com", role: getRoles().student.name, gender: getGenders().female.name, age: 25 });
+    users.forEach(element => {
+      // 
+    });
+    // extract the id so its not included in the test.
+    // as the id auto increments and does not reset in the database when cleared,
+    // so its impossible to have a fixed id for testing.
+    // destructuring and usage of rest operator to separate rest of data and id
+    const { id: id1, ...user1 } = res.body[0];
+    expect(user1).toMatchObject(users[0]);
 
 
-  //   const { id: id2, ...user2 } = res.body[1];
-  //   expect(user2).toMatchObject({ name: "Bob", email: "bob@test.com", role: getRoles().teacher.name, age: 30 });
-  // })
+    const { id: id2, ...user2 } = res.body[1];
+    expect(user2).toMatchObject({ name: "Bob", email: "bob@test.com", role: getRoles().teacher.name, age: 30 });
+  })
 });
 
 // describe('GET /users/:id', () => {

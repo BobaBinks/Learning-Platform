@@ -24,7 +24,7 @@ const resetAndSeed = async () => {
 
     const res = await db.insert(usersTable).values(faker.helpers.multiple(createRandomUser, { count: 2})).returning()
 
-    console.log("Users Inserted: ", res[0]);
+    return res;
 }
 
 const populateRolesTable = async () =>{
@@ -37,11 +37,7 @@ const populateRolesTable = async () =>{
 
     res = await db.select().from(rolesTable)
 
-    return {
-        "admin": res[0],
-        "student": res[1],
-        "teacher": res[2]
-    }
+    return res
 }
 
 const populateGendersTable = async () =>{
@@ -53,10 +49,7 @@ const populateGendersTable = async () =>{
 
     res = await db.select().from(gendersTable)
 
-    return {
-        "male": res[0],
-        "female": res[1],
-    }
+    return res
 }
 
 const getGenders = () =>{
