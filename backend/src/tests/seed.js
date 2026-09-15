@@ -13,7 +13,7 @@ const reset = async ()=>{
     await db.delete(rolesTable)
 }
 
-const resetAndSeed = async () => {
+const resetAndSeed = async (numOfUsers = 2) => {
     await reset();
 
     // clear/reset the table before test
@@ -22,7 +22,7 @@ const resetAndSeed = async () => {
 
     genders = await populateGendersTable();
 
-    const res = await db.insert(usersTable).values(faker.helpers.multiple(createRandomUser, { count: 2})).returning()
+    const res = await db.insert(usersTable).values(faker.helpers.multiple(createRandomUser, { count: numOfUsers})).returning()
 
     return res;
 }
@@ -52,14 +52,26 @@ const populateGendersTable = async () =>{
     return res
 }
 
-const getGenders = () =>{
-    return genders;
+const getGenders = (reduce = false) => {
+    if (reduce) {
+        return genders.reduce((accumulator, genderElement) => {
+            accumulator[genderElement.id] = genderElement.name
+            return accumulator
+        }, {})
+    }
+
+    return genders
 }
 
-const getRoles = () =>{
+const getRoles = (reduce = false) => {
+    if (reduce) {
+        return roles.reduce((accumulator, roleElement) => {
+            accumulator[roleElement.id] = roleElement.name
+            return accumulator
+        }, {})
+    }
     return roles;
 }
-
 
 
 export {

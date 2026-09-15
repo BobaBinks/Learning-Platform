@@ -46,8 +46,20 @@ const nameValidationChain = ({fieldname = "name", isOptional = false} = {}) => {
     .matches(/^[A-Za-z\s'-]+$/).withMessage("Name must be a string.")
 }
 
-const idValidationChain = ({fieldname = "id"} = {}) => {
+const idParamValidationChain = ({fieldname = "id"} = {}) => {
+
     return param(fieldname)
+    .trim()
+    .isInt({min: 0}).withMessage("Id is invalid.");
+}
+
+const idBodyValidationChain = ({fieldname = "id", isOptional = false} = {}) => {
+    let chain = body(fieldname)
+
+    if(isOptional)
+        chain = chain.optional()
+
+    return chain
     .trim()
     .isInt({min: 0}).withMessage("Id is invalid.");
 }
@@ -57,5 +69,6 @@ export {
     passwordValidationChain,
     ageValidationChain,
     nameValidationChain,
-    idValidationChain
+    idParamValidationChain,
+    idBodyValidationChain
 }

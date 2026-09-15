@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import app from '../app.js';
-import { resetAndSeed, getGenders, getRoles, createRandomUser } from './seed.js';
+import { resetAndSeed, getGenders, getRoles } from './seed.js';
+import { createRandomUser } from './factories/userFactory.js';
 import { faker } from '@faker-js/faker';
 import db from '../config/db.js';
 import bcrypt from 'bcrypt';
@@ -27,7 +28,6 @@ const baseUserEndpoint = '/api/users'
 describe('GET /users/', () => {
   beforeEach(async ()=>{
       users = await resetAndSeed()
-      console.log("Users: ", users)
   })
 
   it('returns status code 200 on successful retrieval', async () => {
@@ -47,253 +47,282 @@ describe('GET /users/', () => {
   it('returns all users retrieved', async () => {
     const res = await request(app).get(baseUserEndpoint);
 
-    users.forEach(element => {
-      // 
+    // reduce the genders to single object
+    let genders = getGenders(true);
+
+    // reduce role to single object
+    let roles = getRoles(true);
+
+    // get rid of password
+    const cleanedUsers = users.reduce((accumulator, user)=>{
+      accumulator.push(convertToMockUserResponseObject(user, genders, roles))
+      return accumulator
+    }, [])
+
+    console.log("Cleaned USers: ", cleanedUsers)
+
+    cleanedUsers.forEach(element => {
+      const resUser = res.body.find((x)=> x.email == element.email)
+
+      expect(resUser).toBeDefined()
+      expect(resUser).toMatchObject(element)
     });
-    // extract the id so its not included in the test.
-    // as the id auto increments and does not reset in the database when cleared,
-    // so its impossible to have a fixed id for testing.
-    // destructuring and usage of rest operator to separate rest of data and id
-    const { id: id1, ...user1 } = res.body[0];
-    expect(user1).toMatchObject(users[0]);
-
-
-    const { id: id2, ...user2 } = res.body[1];
-    expect(user2).toMatchObject({ name: "Bob", email: "bob@test.com", role: getRoles().teacher.name, age: 30 });
   })
 });
 
-// describe('GET /users/:id', () => {
-//   let testUser;
+describe('GET /users/:id', () => {
+  let testUser;
 
-//   // create the test user
-//   beforeEach(async () =>{
-//     testUser = await createTestUser();
-//   });
+  beforeEach(()=>{
+    testUser = users[0]
+  })
 
+  it("returns status code 200 on successful retrieval", async () => {
+    const getUserRes = await request(app).get(`${baseUserEndpoint}/${testUser.id}`)
+    expect(getUserRes.status).toBe(200);
+  })
 
-//   it("returns status code 200 on successful retrieval", async () => {
-//     const getUserRes = await request(app).get(`${baseUserEndpoint}/${testUser.id}`)
-//     expect(getUserRes.status).toBe(200);
-//   })
+  it("should return user in correct format", async () => {
+    const getUserRes = await request(app).get(`${baseUserEndpoint}/${testUser.id}`)
 
-//   it("should return user properties", async () => {
-//     const getUserRes = await request(app).get(`${baseUserEndpoint}/${testUser.id}`)
+    const genders = getGenders(true)
+    const roles = getRoles(true)
 
-//     // expect(getUserRes.body.user).toHaveProperty('id')
-//     // expect(getUserRes.body.user).toHaveProperty('email')
-//     // expect(getUserRes.body.user).toHaveProperty('name')
-//     // expect(getUserRes.body.user).toHaveProperty('age')
-//     // expect(getUserRes.body.user).toHaveProperty('gender')
-//     // expect(getUserRes.body.user).toHaveProperty('role')
+    testUser = convertToMockUserResponseObject(testUser, genders, roles)
 
-//     expect(getUserRes.body.user).toMatchObject(testUser);
-//   })
+    expect(getUserRes.body.user).toMatchObject(testUser);
+  })
+
+  it('returns status code 500 when server fails', async () => {
+    vi.spyOn(db, 'select').mockImplementation(() => {
+      throw new Error("Simulated Database Failed To Select User Error");
+    })
+
+    const result = await request(app).get(`${baseUserEndpoint}/${testUser.id}`)
+    expect(result.statusCode).toBe(500);
+  })
+
+  it('should return status code 400 on invalid id', async ()=>{
+    const res = await request(app).get(`${baseUserEndpoint}/${'abc'}`)
+    expect(res.status).toBe(400);
+  })
+
+  it('return status code 400 if user does not exist', async ()=>{
+    const res = await request(app).get(`${baseUserEndpoint}/${0}`)
+
+    const keywords = ['user', 'does', 'not' ,'exist' ]
+    const message = res.body.toLowerCase()
+    expect(keywords.every(word => message.includes(word))).toBe(true);
+    expect(res.statusCode).toBe(400);
+  })
+})
+
+describe('POST /users/', () => {
+  it('returns status code 200 on successful creation', async () => {
+    let payload = createRandomUser()
+
+    // this is to avoid scenario where the email 
+    // might already be in use from the automatic seeding for each it block
+    payload.email = "fixedTestEmail@email.com" 
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    console.log("res: ", res.body)
+    expect(res.status).toBe(200);
+  })
+
+  it('new user should exist in the table', async () => {
+    let payload = createRandomUser()
+    payload.email = "fixedTestEmail@email.com"
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    const userId = res.body.id;
+
+      // retrieve from database directly
+      const retrieveUserResult = await db.select({
+        email: usersTable.email,
+        password: usersTable.password,
+        age: usersTable.age,
+        rolesId: usersTable.rolesId,
+        genderId: usersTable.genderId,
+      }).from(usersTable).where(eq(usersTable.id, userId)).limit(1)
+
+      console.log("RetrieveUserRes: ", retrieveUserResult)
+      const insertedUser = retrieveUserResult[0]
+
+      console.log("Inserted User: ", insertedUser)
+
+      expect(insertedUser.email).toBe(payload.email)
+      expect(await bcrypt.compare(payload.password, insertedUser.password)).toBe(true)
+      expect(insertedUser.age).toBe(payload.age)
+      expect(insertedUser.rolesId).toBe(payload.rolesId)
+
+      if(!payload.genderId) 
+        expect(insertedUser.genderId).toBe(null)
+      else 
+        expect(insertedUser.genderId).toBe(payload.genderId)
+      
+
+  })
+
+  // it('returns status code 409 if user already exists', async () => {
+  //   const payload = { name: "Bob", email: "bob@test.com", password: "h@shedPassword2", age: 30 };
+  //   const res = await request(app)
+  //     .post(baseUserEndpoint)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
+
+  //   expect(res.status).toEqual(409);
+  // })
+
+  // // password does not meet strength requirements
+  // it('returns status code 400 and error message if user password failed to meet strength requirement', async () => {
+  //   const payload = { name: "Bob", email: "bob@test.com", password: "hashedpassword", age: 30 };
+  //   const res = await request(app)
+  //     .post(baseUserEndpoint)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
+
+  //   expect(res.status).toEqual(400);
+  //   const keywords = ['password', 'not', 'strong', 'enough'];
+  //   const message = res.body.errors[0].toLowerCase();
+  //   expect(keywords.every(word => message.includes(word))).toBe(true);
+  // })
+
+  // // password is empty
+  // it('returns status code 400 and error message if user password is empty', async () => {
+  //   const payload = { name: "Bob", email: "bob@test.com", password: "", age: 30 };
+  //   const res = await request(app)
+  //     .post(baseUserEndpoint)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
+
+  //   expect(res.status).toEqual(400);
+  //   const keywords = ['password', 'empty'];
+  //   const message = res.body.errors[0].toLowerCase();
+  //   expect(keywords.every(word => message.includes(word))).toBe(true);
+  // })
+
+  // // wrong email format
+  // it('returns status code 400 and error message if user email is not valid format', async () => {
+  //   const payload = { name: "Bob", email: "bobtest.com", password: "h@shedPassword1", age: 30 };
+  //   const res = await request(app)
+  //     .post(baseUserEndpoint)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
+
+  //   expect(res.status).toEqual(400);
+  //   const keywords = ['email', 'invalid', 'format'];
+  //   const message = res.body.errors[0].toLowerCase();
+  //   expect(keywords.every(word => message.includes(word))).toBe(true);
+  // })
+
+  // // email is empty
+  // it('returns status code 400 and error message if user email is empty', async () => {
+  //   const payload = { name: "Bob", email: "", password: "h@shedPassword1", age: 30 };
+  //   const res = await request(app)
+  //     .post(baseUserEndpoint)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
+
+  //   expect(res.status).toEqual(400);
+  //   const keywords = ['email', 'empty'];
+  //   const message = res.body.errors[0].toLowerCase();
+  //   expect(keywords.every(word => message.includes(word))).toBe(true);
+  // })
+
+  // // invalid age
+  // it('returns status code 400 and error message if user age is not valid', async () => {
+  //   const payload = { name: "Bob", email: "bob@test.com", password: "h@shedPassword1", age: -2 };
+  //   const res = await request(app)
+  //     .post(baseUserEndpoint)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
+
+  //   expect(res.status).toEqual(400);
+  //   const keywords = ['age', 'valid', 'integer'];
+  //   const message = res.body.errors[0].toLowerCase();
+  //   expect(keywords.every(word => message.includes(word))).toBe(true);
+  // })
+
+  // // invalid name
+  // it('returns status code 400 and error message if user name is not valid', async () => {
+  //   const payload = { name: "2", email: "bob@test.com", password: "h@shedPassword1", age: 26 };
+  //   const res = await request(app)
+  //     .post(baseUserEndpoint)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
+
+  //   expect(res.status).toEqual(400);
+  //   const keywords = ['name', 'string'];
+  //   const message = res.body.errors[0].toLowerCase();
+  //   expect(keywords.every(word => message.includes(word))).toBe(true);
+  // })
+
+  // // empty name
+  // it('returns status code 400 and error message if user name is empty', async () => {
+  //   const payload = { name: "", email: "bob@test.com", password: "h@shedPassword1", age: 26 };
+  //   const res = await request(app)
+  //     .post(baseUserEndpoint)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
+
+  //   expect(res.status).toEqual(400);
+  //   const keywords = ['name', 'empty'];
+  //   const message = res.body.errors[0].toLowerCase();
+  //   expect(keywords.every(word => message.includes(word))).toBe(true);
+  // })
+
+  // // check if password is hashed
+  // it('password should not be stored in plaintext and should be hashed', async () => {
+  //   const payload = { name: "Marcus", email: "bob2@test.com", password: "h@shedPassword1", age: 26 };
+  //   const result = await request(app)
+  //     .post(baseUserEndpoint)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
+
+  //   const user = await db.select({ password: usersTable.password }).from(usersTable).where(eq(usersTable.email, payload.email));
+
+  //   const savedPassword = user[0].password;
+
+  //   // ensure it's not stored as plaintext, just for easier diagnosis because a failure on bcrypt compare could mean anything.
+  //   expect(payload.password).not.toBe(savedPassword);
+
+  //   // check if the password was hashed.
+  //   expect(await bcrypt.compare(payload.password, savedPassword)).toBe(true);
+  // })
 
   // it('returns status code 500 when server fails', async () => {
-  //   vi.spyOn(db, 'select').mockImplementation(() => {
-  //     throw new Error("Simulated Database Failed To Select User Error");
+  //   vi.spyOn(db, 'insert').mockImplementation(() => {
+  //     throw new Error("Simulated Database Failed To Insert User Error");
   //   })
 
-  //   const result = await request(app).get(`${baseUserEndpoint}/${userId}`)
-  //   expect(result.statusCode).toBe(500);
+  //   const payload = { name: "Marcus", email: "bob2@test.com", password: "h@shedPassword1", age: 26 };
+  //   const result = await request(app)
+  //     .post(baseUserEndpoint)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
+
+  //   expect(result.status).toBe(500);
   // })
-
-  // it('should return status code 400 on invalid id', async ()=>{
-  //   const res = await request(app).get(`${baseUserEndpoint}/${'abc'}`)
-  //   expect(res.status).toBe(400);
-  // })
-
-  // it('return status code 400 if user does not exist', async ()=>{
-  //   const res = await request(app).get(`${baseUserEndpoint}/${0}`)
-
-  //   const keywords = ['User', 'does', 'not' ,'exist' ]
-  //   expect(keywords.every(word => res.body.includes(word))).toBe(true);
-  //   expect(res.statusCode).toBe(400);
-  // })
-// })
-
-// describe('POST /users/', () => {
-//   it('returns status code 200 on successful creation', async () => {
-//     const payload = { name: "Jane", email: "Jane@test.com", password: "h@shedPassword3", age: 16 };
-//     const res = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//     expect(res.status).toEqual(200);
-//   })
-
-//   it('new user should exist in the table', async () => {
-//     const payload = { name: "Jane", email: "Jane@test.com", password: "h@shedPassword3", age: 16 };
-//     const res = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//       const userId = res.body.id;
-      
-//       const getRes = await request(app).get(`${baseUserEndpoint}/${userId}`)
-
-//       expect(getRes.body.user).toHaveProperty('id')
-//       expect(getRes.body.user).toHaveProperty('email')
-//       expect(getRes.body.user).toHaveProperty('name')
-//       expect(getRes.body.user).toHaveProperty('age')
-//   })
-
-//   it('returns status code 409 if user already exists', async () => {
-//     const payload = { name: "Bob", email: "bob@test.com", password: "h@shedPassword2", age: 30 };
-//     const res = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//     expect(res.status).toEqual(409);
-//   })
-
-//   // password does not meet strength requirements
-//   it('returns status code 400 and error message if user password failed to meet strength requirement', async () => {
-//     const payload = { name: "Bob", email: "bob@test.com", password: "hashedpassword", age: 30 };
-//     const res = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//     expect(res.status).toEqual(400);
-//     const keywords = ['password', 'not', 'strong', 'enough'];
-//     const message = res.body.errors[0].toLowerCase();
-//     expect(keywords.every(word => message.includes(word))).toBe(true);
-//   })
-
-//   // password is empty
-//   it('returns status code 400 and error message if user password is empty', async () => {
-//     const payload = { name: "Bob", email: "bob@test.com", password: "", age: 30 };
-//     const res = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//     expect(res.status).toEqual(400);
-//     const keywords = ['password', 'empty'];
-//     const message = res.body.errors[0].toLowerCase();
-//     expect(keywords.every(word => message.includes(word))).toBe(true);
-//   })
-
-//   // wrong email format
-//   it('returns status code 400 and error message if user email is not valid format', async () => {
-//     const payload = { name: "Bob", email: "bobtest.com", password: "h@shedPassword1", age: 30 };
-//     const res = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//     expect(res.status).toEqual(400);
-//     const keywords = ['email', 'invalid', 'format'];
-//     const message = res.body.errors[0].toLowerCase();
-//     expect(keywords.every(word => message.includes(word))).toBe(true);
-//   })
-
-//   // email is empty
-//   it('returns status code 400 and error message if user email is empty', async () => {
-//     const payload = { name: "Bob", email: "", password: "h@shedPassword1", age: 30 };
-//     const res = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//     expect(res.status).toEqual(400);
-//     const keywords = ['email', 'empty'];
-//     const message = res.body.errors[0].toLowerCase();
-//     expect(keywords.every(word => message.includes(word))).toBe(true);
-//   })
-
-//   // invalid age
-//   it('returns status code 400 and error message if user age is not valid', async () => {
-//     const payload = { name: "Bob", email: "bob@test.com", password: "h@shedPassword1", age: -2 };
-//     const res = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//     expect(res.status).toEqual(400);
-//     const keywords = ['age', 'valid', 'integer'];
-//     const message = res.body.errors[0].toLowerCase();
-//     expect(keywords.every(word => message.includes(word))).toBe(true);
-//   })
-
-//   // invalid name
-//   it('returns status code 400 and error message if user name is not valid', async () => {
-//     const payload = { name: "2", email: "bob@test.com", password: "h@shedPassword1", age: 26 };
-//     const res = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//     expect(res.status).toEqual(400);
-//     const keywords = ['name', 'string'];
-//     const message = res.body.errors[0].toLowerCase();
-//     expect(keywords.every(word => message.includes(word))).toBe(true);
-//   })
-
-//   // empty name
-//   it('returns status code 400 and error message if user name is empty', async () => {
-//     const payload = { name: "", email: "bob@test.com", password: "h@shedPassword1", age: 26 };
-//     const res = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//     expect(res.status).toEqual(400);
-//     const keywords = ['name', 'empty'];
-//     const message = res.body.errors[0].toLowerCase();
-//     expect(keywords.every(word => message.includes(word))).toBe(true);
-//   })
-
-//   // check if password is hashed
-//   it('password should not be stored in plaintext and should be hashed', async () => {
-//     const payload = { name: "Marcus", email: "bob2@test.com", password: "h@shedPassword1", age: 26 };
-//     const result = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//     const user = await db.select({ password: usersTable.password }).from(usersTable).where(eq(usersTable.email, payload.email));
-
-//     const savedPassword = user[0].password;
-
-//     // ensure it's not stored as plaintext, just for easier diagnosis because a failure on bcrypt compare could mean anything.
-//     expect(payload.password).not.toBe(savedPassword);
-
-//     // check if the password was hashed.
-//     expect(await bcrypt.compare(payload.password, savedPassword)).toBe(true);
-//   })
-
-//   it('returns status code 500 when server fails', async () => {
-//     vi.spyOn(db, 'insert').mockImplementation(() => {
-//       throw new Error("Simulated Database Failed To Insert User Error");
-//     })
-
-//     const payload = { name: "Marcus", email: "bob2@test.com", password: "h@shedPassword1", age: 26 };
-//     const result = await request(app)
-//       .post(baseUserEndpoint)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-
-//     expect(result.status).toBe(500);
-//   })
-// })
+})
 
 // describe('PUT /users/:id', () => {
 //   let userId;
@@ -506,4 +535,25 @@ const createTestUser = async ({
 
   const res = await db.insert(usersTable).values(payload).returning();
   return res[0];
+}
+
+const convertToMockUserResponseObject = (user, genders, roles) => {
+      // keep id, name, age, email, gender, role, createdAt, updatedAt
+      delete user.password
+
+      // rename genderId and roleId keys to gender and role
+      const { genderId: gender, rolesId: role } = user
+
+      delete user.genderId
+      delete user.rolesId
+
+      // use id with the names
+      user['gender'] = genders[gender] == undefined ? null : genders[gender]
+      user['role'] = roles[role]
+
+      // convert to string since the response is in string instead of date
+      user['createdAt'] = user.createdAt.toISOString()
+      user['updatedAt'] = user.updatedAt.toISOString()
+
+      return user
 }

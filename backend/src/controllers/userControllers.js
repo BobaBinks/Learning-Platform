@@ -16,7 +16,9 @@ const getAllUsers = async (req, res) => {
             email: usersTable.email,
             age: usersTable.age,
             role: rolesTable.name,
-            gender: gendersTable.name
+            gender: gendersTable.name,
+            createdAt: usersTable.createdAt,
+            updatedAt: usersTable.updatedAt
         }).from(usersTable)
             .leftJoin(rolesTable, eq(usersTable.rolesId, rolesTable.id))
             .leftJoin(gendersTable, eq(usersTable.genderId, gendersTable.id))
@@ -38,12 +40,22 @@ const getUser = async (req, res) => {
 
         const data = matchedData(req);
 
+        // get user data 
         const user = await db.select({
             id: usersTable.id,
             name: usersTable.name,
             email: usersTable.email,
             age: usersTable.age,
-        }).from(usersTable).where(eq(usersTable.id, data.id));
+            gender: gendersTable.name,  // get gender name from genders table via left join
+            role: rolesTable.name,      // get role name from roles table via left join
+            createdAt: usersTable.createdAt,
+            updatedAt: usersTable.updatedAt
+        })
+        .from(usersTable)
+        .where(eq(usersTable.id, data.id))
+        .leftJoin(rolesTable, eq(rolesTable.id, usersTable.rolesId))
+        .leftJoin(gendersTable, eq(gendersTable.id, usersTable.genderId)).limit(1);
+
 
         if (user.length > 0)
             return res.status(200).json({ "user": user[0] });
