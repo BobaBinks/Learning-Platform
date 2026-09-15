@@ -118,8 +118,13 @@ describe('GET /users/:id', () => {
 })
 
 describe('POST /users/', () => {
+  let payload;
+
+  beforeEach(()=>{
+    payload = createRandomUser()
+  })
+
   it('returns status code 200 on successful creation', async () => {
-    let payload = createRandomUser()
 
     // this is to avoid scenario where the email 
     // might already be in use from the automatic seeding for each it block
@@ -135,7 +140,7 @@ describe('POST /users/', () => {
   })
 
   it('new user should exist in the table', async () => {
-    let payload = createRandomUser()
+
     payload.email = "fixedTestEmail@email.com"
     const res = await request(app)
       .post(baseUserEndpoint)
@@ -159,6 +164,7 @@ describe('POST /users/', () => {
 
       console.log("Inserted User: ", insertedUser)
 
+      // verify data inserted is correct
       expect(insertedUser.email).toBe(payload.email)
       expect(await bcrypt.compare(payload.password, insertedUser.password)).toBe(true)
       expect(insertedUser.age).toBe(payload.age)
@@ -172,156 +178,171 @@ describe('POST /users/', () => {
 
   })
 
-  // it('returns status code 409 if user already exists', async () => {
-  //   const payload = { name: "Bob", email: "bob@test.com", password: "h@shedPassword2", age: 30 };
-  //   const res = await request(app)
-  //     .post(baseUserEndpoint)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
+  it('returns status code 409 if user already exists', async () => {
+    payload.email = users[0].email
 
-  //   expect(res.status).toEqual(409);
-  // })
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-  // // password does not meet strength requirements
-  // it('returns status code 400 and error message if user password failed to meet strength requirement', async () => {
-  //   const payload = { name: "Bob", email: "bob@test.com", password: "hashedpassword", age: 30 };
-  //   const res = await request(app)
-  //     .post(baseUserEndpoint)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
+    expect(res.status).toEqual(409);
+  })
 
-  //   expect(res.status).toEqual(400);
-  //   const keywords = ['password', 'not', 'strong', 'enough'];
-  //   const message = res.body.errors[0].toLowerCase();
-  //   expect(keywords.every(word => message.includes(word))).toBe(true);
-  // })
+  // password does not meet strength requirements
+  it('returns status code 400 and error message if user password failed to meet strength requirement', async () => {
+    payload.password = "weakpassword"
 
-  // // password is empty
-  // it('returns status code 400 and error message if user password is empty', async () => {
-  //   const payload = { name: "Bob", email: "bob@test.com", password: "", age: 30 };
-  //   const res = await request(app)
-  //     .post(baseUserEndpoint)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-  //   expect(res.status).toEqual(400);
-  //   const keywords = ['password', 'empty'];
-  //   const message = res.body.errors[0].toLowerCase();
-  //   expect(keywords.every(word => message.includes(word))).toBe(true);
-  // })
+    expect(res.status).toEqual(400);
+    const keywords = ['password', 'not', 'strong', 'enough'];
+    const message = res.body.errors[0].toLowerCase();
+    expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
 
-  // // wrong email format
-  // it('returns status code 400 and error message if user email is not valid format', async () => {
-  //   const payload = { name: "Bob", email: "bobtest.com", password: "h@shedPassword1", age: 30 };
-  //   const res = await request(app)
-  //     .post(baseUserEndpoint)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
+  // password is empty
+  it('returns status code 400 and error message if user password is empty', async () => {
 
-  //   expect(res.status).toEqual(400);
-  //   const keywords = ['email', 'invalid', 'format'];
-  //   const message = res.body.errors[0].toLowerCase();
-  //   expect(keywords.every(word => message.includes(word))).toBe(true);
-  // })
+    payload.password = ""
 
-  // // email is empty
-  // it('returns status code 400 and error message if user email is empty', async () => {
-  //   const payload = { name: "Bob", email: "", password: "h@shedPassword1", age: 30 };
-  //   const res = await request(app)
-  //     .post(baseUserEndpoint)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-  //   expect(res.status).toEqual(400);
-  //   const keywords = ['email', 'empty'];
-  //   const message = res.body.errors[0].toLowerCase();
-  //   expect(keywords.every(word => message.includes(word))).toBe(true);
-  // })
+    expect(res.status).toEqual(400);
+    const keywords = ['password', 'empty'];
+    const message = res.body.errors[0].toLowerCase();
+    expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
 
-  // // invalid age
-  // it('returns status code 400 and error message if user age is not valid', async () => {
-  //   const payload = { name: "Bob", email: "bob@test.com", password: "h@shedPassword1", age: -2 };
-  //   const res = await request(app)
-  //     .post(baseUserEndpoint)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
+  // wrong email format
+  it('returns status code 400 and error message if user email is not valid format', async () => {
 
-  //   expect(res.status).toEqual(400);
-  //   const keywords = ['age', 'valid', 'integer'];
-  //   const message = res.body.errors[0].toLowerCase();
-  //   expect(keywords.every(word => message.includes(word))).toBe(true);
-  // })
+    payload.email = "test.com"
 
-  // // invalid name
-  // it('returns status code 400 and error message if user name is not valid', async () => {
-  //   const payload = { name: "2", email: "bob@test.com", password: "h@shedPassword1", age: 26 };
-  //   const res = await request(app)
-  //     .post(baseUserEndpoint)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-  //   expect(res.status).toEqual(400);
-  //   const keywords = ['name', 'string'];
-  //   const message = res.body.errors[0].toLowerCase();
-  //   expect(keywords.every(word => message.includes(word))).toBe(true);
-  // })
+    expect(res.status).toEqual(400);
+    const keywords = ['email', 'invalid', 'format'];
+    const message = res.body.errors[0].toLowerCase();
+    expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
 
-  // // empty name
-  // it('returns status code 400 and error message if user name is empty', async () => {
-  //   const payload = { name: "", email: "bob@test.com", password: "h@shedPassword1", age: 26 };
-  //   const res = await request(app)
-  //     .post(baseUserEndpoint)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
+  // email is empty
+  it('returns status code 400 and error message if user email is empty', async () => {
 
-  //   expect(res.status).toEqual(400);
-  //   const keywords = ['name', 'empty'];
-  //   const message = res.body.errors[0].toLowerCase();
-  //   expect(keywords.every(word => message.includes(word))).toBe(true);
-  // })
+    payload.email = ""
 
-  // // check if password is hashed
-  // it('password should not be stored in plaintext and should be hashed', async () => {
-  //   const payload = { name: "Marcus", email: "bob2@test.com", password: "h@shedPassword1", age: 26 };
-  //   const result = await request(app)
-  //     .post(baseUserEndpoint)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-  //   const user = await db.select({ password: usersTable.password }).from(usersTable).where(eq(usersTable.email, payload.email));
+    expect(res.status).toEqual(400);
+    const keywords = ['email', 'empty'];
+    const message = res.body.errors[0].toLowerCase();
+    expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
 
-  //   const savedPassword = user[0].password;
+  // invalid age
+  it('returns status code 400 and error message if user age is not valid', async () => {
 
-  //   // ensure it's not stored as plaintext, just for easier diagnosis because a failure on bcrypt compare could mean anything.
-  //   expect(payload.password).not.toBe(savedPassword);
+    payload.age = -2
 
-  //   // check if the password was hashed.
-  //   expect(await bcrypt.compare(payload.password, savedPassword)).toBe(true);
-  // })
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-  // it('returns status code 500 when server fails', async () => {
-  //   vi.spyOn(db, 'insert').mockImplementation(() => {
-  //     throw new Error("Simulated Database Failed To Insert User Error");
-  //   })
+    expect(res.status).toEqual(400);
+    const keywords = ['age', 'valid', 'integer'];
+    const message = res.body.errors[0].toLowerCase();
+    expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
 
-  //   const payload = { name: "Marcus", email: "bob2@test.com", password: "h@shedPassword1", age: 26 };
-  //   const result = await request(app)
-  //     .post(baseUserEndpoint)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
+  // invalid name
+  it('returns status code 400 and error message if user name is not valid', async () => {
 
-  //   expect(result.status).toBe(500);
-  // })
+    payload.name = "2"
+
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    expect(res.status).toEqual(400);
+    const keywords = ['name', 'string'];
+    const message = res.body.errors[0].toLowerCase();
+    expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
+
+  // empty name
+  it('returns status code 400 and error message if user name is empty', async () => {
+
+    payload.name = ""
+
+    const res = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    expect(res.status).toEqual(400);
+    const keywords = ['name', 'empty'];
+    const message = res.body.errors[0].toLowerCase();
+    expect(keywords.every(word => message.includes(word))).toBe(true);
+  })
+
+  // check if password is hashed
+  it('password should not be stored in plaintext and should be hashed', async () => {
+
+    const result = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    expect(result.statusCode).toBe(200)
+
+    const user = await db.select({ password: usersTable.password }).from(usersTable).where(eq(usersTable.email, payload.email));
+
+    const savedPassword = user[0].password;
+
+    // ensure it's not stored as plaintext, just for easier diagnosis because a failure on bcrypt compare could mean anything.
+    expect(payload.password).not.toBe(savedPassword);
+
+    // check if the password was hashed.
+    expect(await bcrypt.compare(payload.password, savedPassword)).toBe(true);
+  })
+
+  it('returns status code 500 when server fails', async () => {
+    vi.spyOn(db, 'insert').mockImplementation(() => {
+      throw new Error("Simulated Database Failed To Insert User Error");
+    })
+
+    const result = await request(app)
+      .post(baseUserEndpoint)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    expect(result.status).toBe(500);
+  })
 })
 
 // describe('PUT /users/:id', () => {
