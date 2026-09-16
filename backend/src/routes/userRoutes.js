@@ -21,11 +21,13 @@ router.post("/",
     createUser);
 
 router.put("/:id",
-    nameValidationChain({ isOptional: true }),
     idParamValidationChain(),
+    nameValidationChain({ isOptional: true }),
     emailValidationChain({ isOptional: true }),
     passwordValidationChain({ isOptional: true }),
     ageValidationChain({ isOptional: true }),
+    idBodyValidationChain({fieldname: "rolesId", isOptional: true}),
+    idBodyValidationChain({fieldname: "genderId", isOptional: true}),
     updateUser);
 
 router.delete("/:id", idParamValidationChain(), deleteUser);

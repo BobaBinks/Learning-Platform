@@ -59,8 +59,6 @@ describe('GET /users/', () => {
       return accumulator
     }, [])
 
-    console.log("Cleaned USers: ", cleanedUsers)
-
     cleanedUsers.forEach(element => {
       const resUser = res.body.find((x)=> x.email == element.email)
 
@@ -120,22 +118,20 @@ describe('GET /users/:id', () => {
 describe('POST /users/', () => {
   let payload;
 
-  beforeEach(()=>{
+  beforeEach(async ()=>{
+    await db.delete(usersTable)
+
+    // payload = {name: 'marcus', email: 'test.test@gmail.com', age: 32, password: 'StrongP@ssword1', rolesId: String(Object.keys(getRoles(true))[0])}
     payload = createRandomUser()
   })
 
   it('returns status code 200 on successful creation', async () => {
-
-    // this is to avoid scenario where the email 
-    // might already be in use from the automatic seeding for each it block
-    payload.email = "fixedTestEmail@email.com" 
     const res = await request(app)
       .post(baseUserEndpoint)
       .set('Content-Type', 'application/json')
       .set('Accept', 'application/json')
       .send(payload);
 
-    console.log("res: ", res.body)
     expect(res.status).toBe(200);
   })
 
@@ -159,10 +155,7 @@ describe('POST /users/', () => {
         genderId: usersTable.genderId,
       }).from(usersTable).where(eq(usersTable.id, userId)).limit(1)
 
-      console.log("RetrieveUserRes: ", retrieveUserResult)
       const insertedUser = retrieveUserResult[0]
-
-      console.log("Inserted User: ", insertedUser)
 
       // verify data inserted is correct
       expect(insertedUser.email).toBe(payload.email)
@@ -179,7 +172,12 @@ describe('POST /users/', () => {
   })
 
   it('returns status code 409 if user already exists', async () => {
-    payload.email = users[0].email
+    // insert new user first
+    const insertedUser = await db.insert(usersTable).values(payload).returning()
+
+    // check insertion was successful
+    expect(insertedUser).toHaveLength(1)
+    expect(insertedUser[0]).toMatchObject({ email: payload.email });
 
     const res = await request(app)
       .post(baseUserEndpoint)
@@ -187,7 +185,7 @@ describe('POST /users/', () => {
       .set('Accept', 'application/json')
       .send(payload);
 
-    expect(res.status).toEqual(409);
+    expect(res.statusCode).toEqual(409);
   })
 
   // password does not meet strength requirements
@@ -200,10 +198,12 @@ describe('POST /users/', () => {
       .set('Accept', 'application/json')
       .send(payload);
 
+    // check status code
     expect(res.status).toEqual(400);
-    const keywords = ['password', 'not', 'strong', 'enough'];
-    const message = res.body.errors[0].toLowerCase();
-    expect(keywords.every(word => message.includes(word))).toBe(true);
+
+    // check error message included
+    expect(res.body).toHaveProperty("errors")
+    expect(res.body.errors).toContain("body[password]: Password is not strong enough.")
   })
 
   // password is empty
@@ -217,10 +217,12 @@ describe('POST /users/', () => {
       .set('Accept', 'application/json')
       .send(payload);
 
+    // check status code
     expect(res.status).toEqual(400);
-    const keywords = ['password', 'empty'];
-    const message = res.body.errors[0].toLowerCase();
-    expect(keywords.every(word => message.includes(word))).toBe(true);
+
+    // check error message included
+    expect(res.body).toHaveProperty("errors")
+    expect(res.body.errors).toContain("body[password]: Password is empty.")
   })
 
   // wrong email format
@@ -234,10 +236,12 @@ describe('POST /users/', () => {
       .set('Accept', 'application/json')
       .send(payload);
 
+    // check status code
     expect(res.status).toEqual(400);
-    const keywords = ['email', 'invalid', 'format'];
-    const message = res.body.errors[0].toLowerCase();
-    expect(keywords.every(word => message.includes(word))).toBe(true);
+
+    // check error message included
+    expect(res.body).toHaveProperty("errors")
+    expect(res.body.errors).toContain("body[email]: Invalid email format.")
   })
 
   // email is empty
@@ -251,10 +255,12 @@ describe('POST /users/', () => {
       .set('Accept', 'application/json')
       .send(payload);
 
+    // check status code
     expect(res.status).toEqual(400);
-    const keywords = ['email', 'empty'];
-    const message = res.body.errors[0].toLowerCase();
-    expect(keywords.every(word => message.includes(word))).toBe(true);
+
+    // check error message included
+    expect(res.body).toHaveProperty("errors")
+    expect(res.body.errors).toContain("body[email]: Email is empty.")
   })
 
   // invalid age
@@ -268,27 +274,12 @@ describe('POST /users/', () => {
       .set('Accept', 'application/json')
       .send(payload);
 
+    // check status code
     expect(res.status).toEqual(400);
-    const keywords = ['age', 'valid', 'integer'];
-    const message = res.body.errors[0].toLowerCase();
-    expect(keywords.every(word => message.includes(word))).toBe(true);
-  })
 
-  // invalid name
-  it('returns status code 400 and error message if user name is not valid', async () => {
-
-    payload.name = "2"
-
-    const res = await request(app)
-      .post(baseUserEndpoint)
-      .set('Content-Type', 'application/json')
-      .set('Accept', 'application/json')
-      .send(payload);
-
-    expect(res.status).toEqual(400);
-    const keywords = ['name', 'string'];
-    const message = res.body.errors[0].toLowerCase();
-    expect(keywords.every(word => message.includes(word))).toBe(true);
+    // check error message included
+    expect(res.body).toHaveProperty("errors")
+    expect(res.body.errors).toContain("body[age]: Age must be a valid integer.")
   })
 
   // empty name
@@ -302,10 +293,47 @@ describe('POST /users/', () => {
       .set('Accept', 'application/json')
       .send(payload);
 
+    // check status code
     expect(res.status).toEqual(400);
-    const keywords = ['name', 'empty'];
-    const message = res.body.errors[0].toLowerCase();
-    expect(keywords.every(word => message.includes(word))).toBe(true);
+
+    // check error message included
+    expect(res.body).toHaveProperty("errors")
+    expect(res.body.errors).toContain("body[name]: Name is empty.")
+  })
+
+  it('returns status code 400 and error message if gender id is not valid', async () => {
+    payload.genderId = -1
+
+    const res = await request(app)
+    .post(baseUserEndpoint)
+    .set('Content-Type', 'application/json')
+    .set('Accept', 'application/json')
+    .send(payload)
+
+    // check status code
+    expect(res.status).toEqual(400);
+
+    // check error message included
+    expect(res.body).toHaveProperty("errors")
+    expect(res.body.errors).toContain("body[genderId]: Id is invalid.")
+  })
+
+  it('returns status code 400 and error message if roles id is not valid', async () => {
+    payload.rolesId = -1
+
+    const res = await request(app)
+    .post(baseUserEndpoint)
+    .set('Content-Type', 'application/json')
+    .set('Accept', 'application/json')
+    .send(payload)
+
+    expect(res.statusCode).toBe(400)
+
+    const message = res.body
+
+    // verify error message for invalid id exists
+    expect(message).toHaveProperty("errors")
+    expect(message.errors).toContain("body[rolesId]: Id is invalid.")
   })
 
   // check if password is hashed
@@ -345,150 +373,166 @@ describe('POST /users/', () => {
   })
 })
 
-// describe('PUT /users/:id', () => {
-//   let userId;
-//   beforeEach(async () => {
-//     userId = await createTestUser();
-//   })
+describe('PUT /users/:id', () => {
+  let user;
+  beforeEach(async () => {
+    user = users[0]
+  })
 
-// //#region validation
-//   // returns status code 400 on validation errors
-//   it('handles name validation error', async () => {
-//     const payload = { "name": "name1" }
-//     const res = await request(app)
-//       .put(`${baseUserEndpoint}/${userId}`)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
+//#region validation
+  // returns status code 400 on validation errors
+  it('handles age validation error', async () => {
+    const payload = { "age": "a" }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${user.id}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-//       expect(res.statusCode).toBe(400);
-//       expect(res.body).toHaveProperty('errors')
-//   });
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toHaveProperty("errors")
+      expect(res.body.errors).toContain('body[age]: Age must be a valid integer.')
+  });
 
-//   // returns status code 400 on validation errors
-//   it('handles age validation error', async () => {
-//     const payload = { "age": "a" }
-//     const res = await request(app)
-//       .put(`${baseUserEndpoint}/${userId}`)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
+  // returns status code 400 on validation errors
+  it('handles email validation error', async () => {
+    const payload = { "email": "aa.com" }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${user.id}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-//       expect(res.statusCode).toBe(400);
-//       expect(res.body).toHaveProperty('errors')
-//   });
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toHaveProperty('errors')
+      expect(res.body.errors).toContain("body[email]: Invalid email format.")
+  });
 
-//   // returns status code 400 on validation errors
-//   it('handles email validation error', async () => {
-//     const payload = { "email": "aa.com" }
-//     const res = await request(app)
-//       .put(`${baseUserEndpoint}/${userId}`)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
+  // returns status code 400 on validation errors
+  it('handles password validation error', async () => {
+    const payload = { "password": "password" }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${user.id}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-//       expect(res.statusCode).toBe(400);
-//       expect(res.body).toHaveProperty('errors')
-//   });
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toHaveProperty('errors')
+      expect(res.body.errors).toContain("body[password]: Password is not strong enough.")
+  });
 
-//   // returns status code 400 on validation errors
-//   it('handles password validation error', async () => {
-//     const payload = { "password": "password" }
-//     const res = await request(app)
-//       .put(`${baseUserEndpoint}/${userId}`)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
+  // returns status code 400 on validation errors
+  it('handles gender validation error', async () => {
+    const payload = { "genderId": -1 }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${user.id}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-//       expect(res.statusCode).toBe(400);
-//       expect(res.body).toHaveProperty('errors')
-//   });
-// //#endregion
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toHaveProperty('errors')
+      expect(res.body.errors).toContain("body[genderId]: Id is invalid.")
+  });
+
+  // returns status code 400 on validation errors
+  it('handles role validation error', async () => {
+    const payload = { "rolesId": -1 }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${user.id}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body).toHaveProperty('errors')
+      expect(res.body.errors).toContain("body[rolesId]: Id is invalid.")
+  });
+//#endregion
   
-//   // returns status 404 if user was not found
-//   it('returns status 404 if user was not found', async () => {
-//     const payload = { "name": "marcus" }
-//     const res = await request(app)
-//       .put(`${baseUserEndpoint}/0`)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
+  // returns status 404 if user was not found
+  it('returns status 404 if user was not found', async () => {
+    const payload = { "name": "marcus" }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/0`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
 
-//       expect(res.statusCode).toBe(404);
-//       expect(res.body).toHaveProperty('message')
-//   });
+      expect(res.statusCode).toBe(404);
+      expect(res.body).toHaveProperty('message')
+      expect(res.body.message).toBe("User not found.")
+  });
 
-//   // returns status 200 if user was found
-//   it('returns status 200 if user was found', async () => {
-//     const payload = { name: 'Marcus' }
-//     const res = await request(app)
-//       .put(`${baseUserEndpoint}/${userId}`)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
-//     expect(res.status).toBe(200);
-//   });
+  // returns status 200 if user was found
+  it('returns status 200 if user was found', async () => {
+    const payload = { name: 'Marcus' }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${user.id}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+    expect(res.status).toBe(200);
+  });
   
-//   // check if fields are updated
-//   it('check if fields are updated', async () => {
-//     const payload = { 'name': 'Marcus', 'password': 'HashedP@assword2', 'age': 32, 'email': 'good@email.com' }
-//     const res = await request(app)
-//       .put(`${baseUserEndpoint}/${userId}`)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
+  // // check if fields are updated
+  // it('check if fields are updated', async () => {
+  //   const payload = createRandomUser()
+  //   const res = await request(app)
+  //     .put(`${baseUserEndpoint}/${user.id}`)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
 
-//     expect(res.status).toBe(200);
+  //   expect(res.status).toBe(200);
 
-//     // check updates took place
-//     const updatedUserRetrievalRes = await db.select({
-//       'name': usersTable.name,
-//       'password': usersTable.password,
-//       'age': usersTable.age,
-//       'email': usersTable.email
-//     }).from(usersTable).where(eq(usersTable.id, userId))
+  //   // check updates took place
+  //   const updatedUserRetrievalRes = await db.select().from(usersTable).where(eq(usersTable.id, user.id))
+    
+  //   const user = updatedUserRetrievalRes[0]
+  //   expect(user.age).toBe(payload.age)
+  //   expect(user.email).toBe(payload.email)
+  //   expect(user.name).toBe(payload.name)
 
-//     const user = updatedUserRetrievalRes[0]
-//     expect(user.age).toBe(payload.age)
-//     expect(user.email).toBe(payload.email)
-//     expect(user.name).toBe(payload.name)
+  //   // need to check if the updatedAt field is also updated
 
-//     // check if password is rehashed
-//     expect(await bcrypt.compare(payload.password, user.password)).toBe(true)
-//   });
+  //   // check if password is rehashed
+  //   expect(await bcrypt.compare(payload.password, user.password)).toBe(true)
+  // });
 
-//   // ensure correct fields are only updated
-//   it('ensure correct fields are only updated', async () => {
-//     // retrieve original user data
-//     const originalRes = await db.select().from(usersTable).where(eq(usersTable.id, userId))
+  // // ensure correct fields are only updated
+  // it('ensure correct fields are only updated', async () => {
+  //   // retrieve original user data
+  //   const originalRes = await db.select().from(usersTable).where(eq(usersTable.id, userId))
 
-//     const originalUserData = originalRes[0]
+  //   const originalUserData = originalRes[0]
 
-//     const payload = { 'name': 'Marcus' }
-//     const res = await request(app)
-//       .put(`${baseUserEndpoint}/${userId}`)
-//       .set('Content-Type', 'application/json')
-//       .set('Accept', 'application/json')
-//       .send(payload);
+  //   const payload = { 'name': 'Marcus' }
+  //   const res = await request(app)
+  //     .put(`${baseUserEndpoint}/${userId}`)
+  //     .set('Content-Type', 'application/json')
+  //     .set('Accept', 'application/json')
+  //     .send(payload);
 
-//     expect(res.status).toBe(200);
+  //   expect(res.status).toBe(200);
 
-//     // check updates took place
-//     const updatedUserRetrievalRes = await db.select({
-//       'name': usersTable.name,
-//       'password': usersTable.password,
-//       'age': usersTable.age,
-//       'email': usersTable.email
-//     }).from(usersTable).where(eq(usersTable.id, userId))
+  //   // check updates took place
+  //   const updatedUserRetrievalRes = await db.select({
+  //     'name': usersTable.name,
+  //     'password': usersTable.password,
+  //     'age': usersTable.age,
+  //     'email': usersTable.email
+  //   }).from(usersTable).where(eq(usersTable.id, userId))
 
 
-//     const user = updatedUserRetrievalRes[0]
-//     expect(user.age).toBe(originalUserData.age)
-//     expect(user.email).toBe(originalUserData.email)
-//     expect(user.name).toBe(payload.name)
-//     expect(user.password).toBe(originalUserData.password)
-//   });
-// });
+  //   const user = updatedUserRetrievalRes[0]
+  //   expect(user.age).toBe(originalUserData.age)
+  //   expect(user.email).toBe(originalUserData.email)
+  //   expect(user.name).toBe(payload.name)
+  //   expect(user.password).toBe(originalUserData.password)
+  // });
+});
 
 // describe('DELETE /users/:id', () => {
 //   let userId;
@@ -539,24 +583,6 @@ describe('POST /users/', () => {
 
 // default argument is an empty object
 // the destructure will default to values if they dont exist in an object
-const createTestUser = async ({
-  // Outer default (`= {}` at the very end of the parameter list) handles the case
-  // where createTestUser() is called with NO argument at all.
-  // Without it, destructuring `undefined` would throw immediately.
-  name = "Jane", // inner default: used if `name` key is missing/undefined on the passed object
-  email = "Jane@test.com", // same idea — per-key fallback, independent of the others
-  password = "h@shedPassword3",
-  age = 13,
-  genderId = getGenders().female.id,
-  rolesId = getRoles().student.id
-} = {}) => {
-
-  // create a new user, and save the returned id.
-  const payload = { name: name, email: email, password: password, age: age, genderId: genderId, rolesId: rolesId };
-
-  const res = await db.insert(usersTable).values(payload).returning();
-  return res[0];
-}
 
 const convertToMockUserResponseObject = (user, genders, roles) => {
       // keep id, name, age, email, gender, role, createdAt, updatedAt

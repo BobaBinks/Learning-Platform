@@ -43,7 +43,7 @@ const nameValidationChain = ({fieldname = "name", isOptional = false} = {}) => {
     return chain
     .trim()
     .notEmpty().withMessage("Name is empty.")
-    .matches(/^[A-Za-z\s'-]+$/).withMessage("Name must be a string.")
+    .isString().withMessage("Name must be a string.")
 }
 
 const idParamValidationChain = ({fieldname = "id"} = {}) => {
