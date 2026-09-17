@@ -551,50 +551,50 @@ describe('PUT /users/:id', () => {
   });
 });
 
-// describe('DELETE /users/:id', () => {
-//   let userId;
-//   beforeEach(async () =>{
-//     userId = await createTestUser();
-//   })
+describe('DELETE /users/:id', () => {
+  let user;
+  beforeEach(async () =>{
+    user = users[0];
+  })
 
-//   // return status 200 on successful delete
-//   it('return status 200 on successful delete', async ()=>{
-//     const res = await request(app).delete(`${baseUserEndpoint}/${userId}`);
+  // return status 200 on successful delete
+  it('return status 200 on successful delete', async ()=>{
+    const res = await request(app).delete(`${baseUserEndpoint}/${user.id}`);
 
-//     expect(res.status).toBe(200);
+    expect(res.status).toBe(200);
 
-//     // ensure user deleted from database
-//     const attemptRes = await db.select().from(usersTable).where(eq(usersTable.id, userId))
+    // ensure user deleted from database
+    const attemptRes = await db.select().from(usersTable).where(eq(usersTable.id, user.id))
 
-//     expect(attemptRes.length).toBe(0)
-//   })
+    expect(attemptRes.length).toBe(0)
+  })
 
-//   // return status 404 if user not found
-//   it('return status 404 if user not found', async ()=>{
-//     const res = await request(app).delete(`${baseUserEndpoint}/0`);
+  // return status 404 if user not found
+  it('return status 404 if user not found', async ()=>{
+    const res = await request(app).delete(`${baseUserEndpoint}/0`);
 
-//     expect(res.status).toBe(404);
-//   })
+    expect(res.status).toBe(404);
+  })
 
-//   // return status 400 if id validation failed
-//   it('return status 400 if id validation failed', async ()=>{
-//     const res = await request(app).delete(`${baseUserEndpoint}/a`);
+  // return status 400 if id validation failed
+  it('return status 400 if id validation failed', async ()=>{
+    const res = await request(app).delete(`${baseUserEndpoint}/a`);
 
-//     expect(res.status).toBe(400);
-//   })
+    expect(res.status).toBe(400);
+  })
 
-//   // expect status 500 if database failure
-//   it('expect status 500 if database failure', async ()=>{
-//     vi.spyOn(db, 'delete').mockImplementation(()=>{
-//       return new Error("Simulated Database Failed To Delete User Error")
-//     })
+  // expect status 500 if database failure
+  it('expect status 500 if database failure', async ()=>{
+    vi.spyOn(db, 'delete').mockImplementation(()=>{
+      return new Error("Simulated Database Failed To Delete User Error")
+    })
 
-//     const res = await request(app).delete(`${baseUserEndpoint}/${userId}`);
+    const res = await request(app).delete(`${baseUserEndpoint}/${user.id}`);
 
-//     expect(res.status).toBe(500);
-//   })
+    expect(res.status).toBe(500);
+  })
 
-// })
+})
 
 
 
