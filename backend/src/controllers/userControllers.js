@@ -143,6 +143,10 @@ const updateUser = async (req, res) => {
             fieldsToUpdate['password'] = hashedPassword;
         }
 
+        if(Object.hasOwn(data, 'genderId')) fieldsToUpdate['genderId'] = data['genderId']
+
+        if(Object.hasOwn(data, 'rolesId')) fieldsToUpdate['rolesId'] = data['rolesId']
+
         // checks if there are any fields that survived validation checks and was added to fieldsToUpdate
         if (Object.keys(fieldsToUpdate).length === 0) {
             return res.status(400).json({ "message": "No data provided for update!" });

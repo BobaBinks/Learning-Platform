@@ -476,62 +476,79 @@ describe('PUT /users/:id', () => {
     expect(res.status).toBe(200);
   });
   
-  // // check if fields are updated
-  // it('check if fields are updated', async () => {
-  //   const payload = createRandomUser()
-  //   const res = await request(app)
-  //     .put(`${baseUserEndpoint}/${user.id}`)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
+  // check if fields are updated
+  it('check if fields are updated', async () => {
+    const payload = createRandomUser()
 
-  //   expect(res.status).toBe(200);
+    const originalUpdatedAtRes = await db.select({updatedAt: usersTable.updatedAt}).from(usersTable).where(eq(usersTable.id, user.id)).limit(1)
 
-  //   // check updates took place
-  //   const updatedUserRetrievalRes = await db.select().from(usersTable).where(eq(usersTable.id, user.id))
+    expect(originalUpdatedAtRes).toHaveLength(1)
+    expect(originalUpdatedAtRes[0]).toHaveProperty("updatedAt")
+    const originalUpdatedAt = originalUpdatedAtRes[0].updatedAt     
+
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${user.id}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    expect(res.status).toBe(200);
+
+    // check updates took place
+    const updatedUserRetrievalRes = await db.select().from(usersTable).where(eq(usersTable.id, user.id)).limit(1)
     
-  //   const user = updatedUserRetrievalRes[0]
-  //   expect(user.age).toBe(payload.age)
-  //   expect(user.email).toBe(payload.email)
-  //   expect(user.name).toBe(payload.name)
+    expect(updatedUserRetrievalRes).toHaveLength(1)
 
-  //   // need to check if the updatedAt field is also updated
-
-  //   // check if password is rehashed
-  //   expect(await bcrypt.compare(payload.password, user.password)).toBe(true)
-  // });
-
-  // // ensure correct fields are only updated
-  // it('ensure correct fields are only updated', async () => {
-  //   // retrieve original user data
-  //   const originalRes = await db.select().from(usersTable).where(eq(usersTable.id, userId))
-
-  //   const originalUserData = originalRes[0]
-
-  //   const payload = { 'name': 'Marcus' }
-  //   const res = await request(app)
-  //     .put(`${baseUserEndpoint}/${userId}`)
-  //     .set('Content-Type', 'application/json')
-  //     .set('Accept', 'application/json')
-  //     .send(payload);
-
-  //   expect(res.status).toBe(200);
-
-  //   // check updates took place
-  //   const updatedUserRetrievalRes = await db.select({
-  //     'name': usersTable.name,
-  //     'password': usersTable.password,
-  //     'age': usersTable.age,
-  //     'email': usersTable.email
-  //   }).from(usersTable).where(eq(usersTable.id, userId))
+    const updatedUser = updatedUserRetrievalRes[0]
+    // check if password is rehashed
+    expect(await bcrypt.compare(payload.password, updatedUser.password)).toBe(true)
 
 
-  //   const user = updatedUserRetrievalRes[0]
-  //   expect(user.age).toBe(originalUserData.age)
-  //   expect(user.email).toBe(originalUserData.email)
-  //   expect(user.name).toBe(payload.name)
-  //   expect(user.password).toBe(originalUserData.password)
-  // });
+
+    expect(updatedUser.age).toBe(payload.age)
+    expect(updatedUser.email).toBe(payload.email)
+    expect(updatedUser.name).toBe(payload.name)
+    expect(updatedUser.rolesId).toBe(payload.rolesId)
+    
+    if(payload.hasOwnProperty("genderId"))
+      expect(updatedUser.genderId).toBe(payload.genderId)
+
+    // need to check if the updatedAt field is also updated
+    expect(updatedUser.updatedAt.getTime()).toBeGreaterThan(originalUpdatedAt.getTime())
+
+  });
+  
+  // ensure correct fields are only updated
+  it('ensure correct fields are only updated', async () => {
+    // retrieve original user data
+    const originalRes = await db.select().from(usersTable).where(eq(usersTable.id, user.id))
+
+    const originalUserData = originalRes[0]
+
+    const payload = { 'name': 'Marcus' }
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${user.id}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    expect(res.status).toBe(200);
+
+    // check updates took place
+    const updatedUserRetrievalRes = await db.select({
+      'name': usersTable.name,
+      'password': usersTable.password,
+      'age': usersTable.age,
+      'email': usersTable.email
+    }).from(usersTable).where(eq(usersTable.id, user.id))
+
+
+    const updatedUser = updatedUserRetrievalRes[0]
+    expect(updatedUser.age).toBe(originalUserData.age)
+    expect(updatedUser.email).toBe(originalUserData.email)
+    expect(updatedUser.name).toBe(payload.name)
+    expect(updatedUser.password).toBe(originalUserData.password)
+  });
 });
 
 // describe('DELETE /users/:id', () => {
