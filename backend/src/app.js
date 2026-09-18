@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import db from './config/db.js';
 import dns from 'dns';
 import userRoutes from './routes/userRoutes.js'
+import authRoutes from './routes/authRoutes.js'
 import cors from 'cors'
 
 
@@ -14,7 +15,9 @@ app.use(express.json());
 
 app.use(cors({origin: 'http://localhost:5173'}));
 
+app.use("/api/auth", authRoutes)
 app.use("/api/users", userRoutes);
+
 
 const port = process.env.PORT || 3000;
 
