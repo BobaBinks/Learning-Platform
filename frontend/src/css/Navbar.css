@@ -1,0 +1,53 @@
+.navbar{
+    display: inline-flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 32px;
+    background-color: #1a1a2e;
+    color: white;
+}
+
+.navbar-links{
+    display: flex;
+    gap: 24px;
+    list-style: none;
+}
+
+.navbar-links a{
+    color: white;
+    text-decoration: none;
+}
+
+.navbar-links a:hover{
+    color: #a0a0ff;  
+}
+
+.navbar-links a.active{
+    color: #a0a0ff;
+    font-weight: bold;
+}
+
+.navbar-toggle{
+    display:none; /* hidden by default, on wide screens */
+    background:none;
+    border:none;
+    color:white;
+    font-size:24px;
+    cursor:pointer;
+}
+
+@media(max-width: 768px){
+    .navbar-toggle {
+    display: block;   /* shows the hamburger button only on narrow screens */
+  }
+
+  .navbar-links {
+    display: none;   /* links hidden by default on narrow screens */
+    flex-direction: column;   /* stack vertically when they do show */
+    width: 100%;
+  }
+
+  .navbar-links.open {
+    display: flex;   /* shown only when the 'open' class is present */
+  }
+}
