@@ -2,15 +2,16 @@ import express from "express"
 import { body, query } from "express-validator";
 import { getAllUsers, createUser, updateUser, deleteUser, getUser } from '../controllers/userControllers.js';
 import { emailValidationChain, passwordValidationChain, nameValidationChain, ageValidationChain, idParamValidationChain,idBodyValidationChain } from "../utils/validationChains.js";
-
+import { verifyToken } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.get("/", getAllUsers);
+router.get("/", verifyToken, getAllUsers);
 
-router.get("/:id",idParamValidationChain(), getUser);
+router.get("/:id", verifyToken, idParamValidationChain(), getUser);
 
-router.post("/",
+router.post("/", 
+    verifyToken,
     emailValidationChain(),
     passwordValidationChain(),
     ageValidationChain(),
@@ -21,6 +22,7 @@ router.post("/",
     createUser);
 
 router.put("/:id",
+    verifyToken,
     idParamValidationChain(),
     nameValidationChain({ isOptional: true }),
     emailValidationChain({ isOptional: true }),

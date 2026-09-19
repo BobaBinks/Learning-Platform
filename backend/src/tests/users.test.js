@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import app from '../app.js';
-import { resetAndSeed, getGenders, getRoles } from './seed.js';
+import { getGenders, getRoles, resetTestDatabase, seedUsersTable } from './seed.js';
 import { createRandomUser } from './factories/userFactory.js';
 import { faker } from '@faker-js/faker';
 import db from '../config/db.js';
@@ -10,26 +10,21 @@ import { eq } from "drizzle-orm";
 import { usersTable } from '../db/schema.js';
 
 
+const baseUserEndpoint = '/api/users'
 let users;
 
 // before each it block
 beforeEach(async () => {
-  users = await resetAndSeed();
+  await resetTestDatabase();
+  users = await seedUsersTable();
 })
 
 // after each it block
-afterEach(() => {
+afterEach(async () => {
   vi.resetAllMocks();
 })
 
-const baseUserEndpoint = '/api/users'
-
-
 describe('GET /users/', () => {
-  beforeEach(async ()=>{
-      users = await resetAndSeed()
-  })
-
   it('returns status code 200 on successful retrieval', async () => {
     const res = await request(app).get(baseUserEndpoint);
     expect(res.status).toBe(200);

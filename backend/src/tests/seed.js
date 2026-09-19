@@ -7,27 +7,23 @@ import { faker } from '@faker-js/faker';
 let roles;
 let genders;
 
-const reset = async ()=>{
+const resetTestDatabase = async () => {
     await db.delete(usersTable)
-    await db.delete(gendersTable)
     await db.delete(rolesTable)
+    await db.delete(gendersTable)
 }
 
-const resetAndSeed = async (numOfUsers = 2) => {
-    await reset();
+const seedUsersTable = async (numOfUsers = 2) => {
+    roles = await seedRolesTable();
 
-    // clear/reset the table before test
-
-    roles = await populateRolesTable();
-
-    genders = await populateGendersTable();
+    genders = await seedGendersTable();
 
     const res = await db.insert(usersTable).values(faker.helpers.multiple(createRandomUser, { count: numOfUsers})).returning()
 
     return res;
 }
 
-const populateRolesTable = async () =>{
+const seedRolesTable = async () =>{
     let res = await db.insert(rolesTable).values([
         { name: "ADMIN" },
         { name: "STUDENT" },
@@ -40,7 +36,7 @@ const populateRolesTable = async () =>{
     return res
 }
 
-const populateGendersTable = async () =>{
+const seedGendersTable = async () =>{
     let res = await db.insert(gendersTable).values([
         { name: "MALE" },
         { name: "FEMALE" },
@@ -75,7 +71,8 @@ const getRoles = (reduce = false) => {
 
 
 export {
-    resetAndSeed,
+    seedUsersTable,
+    resetTestDatabase,
     getRoles,
     getGenders,
 }
