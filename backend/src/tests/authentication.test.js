@@ -1,9 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import app from '../app.js';
-import { getGenders, getRoles, resetTestDatabase, seedUsersTable } from './seed.js';
-import { createRandomUser } from './factories/userFactory.js';
-import { faker } from '@faker-js/faker';
+import { resetTestDatabase, seedUsersTable } from './seed.js';
 import db from '../config/db.js';
 import bcrypt from 'bcrypt';
 import { eq } from "drizzle-orm";
