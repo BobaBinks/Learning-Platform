@@ -11,12 +11,11 @@ const verifyToken = (req, res, next) => {
     // verify if jwt token is valid
     if(Object.hasOwn(req.cookies, 'jwt')){
         try {
-            const valid = jwt.verify(req.cookies.jwt, process.env.JWT_SECRET_KEY)
+            const decodedToken = jwt.verify(req.cookies.jwt, process.env.JWT_SECRET_KEY)
     
-            if(valid){
-                console.log("Successful token verification")
-                return next()
-            }
+            console.log("Successful token verification")
+            req.decoded = decodedToken
+            return next()
             
         } catch (error) {
             console.log(error)
@@ -26,6 +25,8 @@ const verifyToken = (req, res, next) => {
     return res.status(401).json("Invalid token.")
 }
 
-export {
+const authMiddleware = {
     verifyToken,
 }
+
+export default authMiddleware

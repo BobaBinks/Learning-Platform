@@ -176,6 +176,12 @@ const deleteUser = async (req, res) => {
 
         const data = matchedData(req);
 
+        if(!Object.hasOwn(req,'decoded') 
+        || !Object.hasOwn(req.decoded, 'id') 
+        || req.decoded.id != data.id){
+            return res.status(403).json('Not authorized to make this request')
+        }
+
         const result = await db.delete(usersTable).where(eq(usersTable.id, data.id)).returning({ id: usersTable.id });
 
         if (result.length > 0)

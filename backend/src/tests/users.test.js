@@ -8,7 +8,9 @@ import db from '../config/db.js';
 import bcrypt from 'bcrypt';
 import { eq } from "drizzle-orm";
 import { usersTable } from '../db/schema.js';
+import jwt from 'jsonwebtoken'
 
+import authMiddleware from '../middleware/authMiddleware.js'
 
 const baseUserEndpoint = '/api/users'
 let users;
@@ -25,8 +27,17 @@ afterEach(async () => {
 })
 
 describe('GET /users/', () => {
+  beforeEach(() => {
+    // mock successful authentication middleware
+    vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+      return next()
+    })
+  })
+
   it('returns status code 200 on successful retrieval', async () => {
-    const res = await request(app).get(baseUserEndpoint);
+    const res = await request(app)
+      .get(baseUserEndpoint);
+
     expect(res.status).toBe(200);
   });
 
@@ -49,25 +60,40 @@ describe('GET /users/', () => {
     let roles = getRoles(true);
 
     // get rid of password
-    const cleanedUsers = users.reduce((accumulator, user)=>{
+    const cleanedUsers = users.reduce((accumulator, user) => {
       accumulator.push(convertToMockUserResponseObject(user, genders, roles))
       return accumulator
     }, [])
 
     cleanedUsers.forEach(element => {
-      const resUser = res.body.find((x)=> x.email == element.email)
+      const resUser = res.body.find((x) => x.email == element.email)
 
       expect(resUser).toBeDefined()
       expect(resUser).toMatchObject(element)
     });
+  })
+
+  it('returns status code 401 when not authenticated', async () => {
+    vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+      return res.status(401).json("Invalid token")
+    })
+
+    const res = await request(app).get(baseUserEndpoint)
+
+    expect(res.status).toBe(401)
   })
 });
 
 describe('GET /users/:id', () => {
   let testUser;
 
-  beforeEach(()=>{
+  beforeEach(() => {
     testUser = users[0]
+
+    // mock successful authentication middleware
+    vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+      return next()
+    })
   })
 
   it("returns status code 200 on successful retrieval", async () => {
@@ -95,18 +121,28 @@ describe('GET /users/:id', () => {
     expect(result.statusCode).toBe(500);
   })
 
-  it('should return status code 400 on invalid id', async ()=>{
+  it('should return status code 400 on invalid id', async () => {
     const res = await request(app).get(`${baseUserEndpoint}/${'abc'}`)
     expect(res.status).toBe(400);
   })
 
-  it('return status code 400 if user does not exist', async ()=>{
+  it('return status code 400 if user does not exist', async () => {
     const res = await request(app).get(`${baseUserEndpoint}/${0}`)
 
-    const keywords = ['user', 'does', 'not' ,'exist' ]
+    const keywords = ['user', 'does', 'not', 'exist']
     const message = res.body.toLowerCase()
     expect(keywords.every(word => message.includes(word))).toBe(true);
     expect(res.statusCode).toBe(400);
+  })
+
+  it('returns status code 401 when not authenticated', async () => {
+    vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+      return res.status(401).json("Invalid token")
+    })
+
+    const res = await request(app).get(`${baseUserEndpoint}/${testUser.id}`)
+
+    expect(res.status).toBe(401)
   })
 })
 
@@ -162,7 +198,7 @@ describe('POST /users/', () => {
         expect(insertedUser.genderId).toBe(null)
       else 
         expect(insertedUser.genderId).toBe(payload.genderId)
-      
+
 
   })
 
@@ -372,6 +408,11 @@ describe('PUT /users/:id', () => {
   let user;
   beforeEach(async () => {
     user = users[0]
+
+    // mock successful authentication middleware
+    vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+      return next()
+    })
   })
 
 //#region validation
@@ -445,7 +486,7 @@ describe('PUT /users/:id', () => {
       expect(res.body.errors).toContain("body[rolesId]: Id is invalid.")
   });
 //#endregion
-  
+
   // returns status 404 if user was not found
   it('returns status 404 if user was not found', async () => {
     const payload = { "name": "marcus" }
@@ -470,7 +511,7 @@ describe('PUT /users/:id', () => {
       .send(payload);
     expect(res.status).toBe(200);
   });
-  
+
   // check if fields are updated
   it('check if fields are updated', async () => {
     const payload = createRandomUser()
@@ -491,7 +532,7 @@ describe('PUT /users/:id', () => {
 
     // check updates took place
     const updatedUserRetrievalRes = await db.select().from(usersTable).where(eq(usersTable.id, user.id)).limit(1)
-    
+
     expect(updatedUserRetrievalRes).toHaveLength(1)
 
     const updatedUser = updatedUserRetrievalRes[0]
@@ -504,7 +545,7 @@ describe('PUT /users/:id', () => {
     expect(updatedUser.email).toBe(payload.email)
     expect(updatedUser.name).toBe(payload.name)
     expect(updatedUser.rolesId).toBe(payload.rolesId)
-    
+
     if(payload.hasOwnProperty("genderId"))
       expect(updatedUser.genderId).toBe(payload.genderId)
 
@@ -512,7 +553,7 @@ describe('PUT /users/:id', () => {
     expect(updatedUser.updatedAt.getTime()).toBeGreaterThan(originalUpdatedAt.getTime())
 
   });
-  
+
   // ensure correct fields are only updated
   it('ensure correct fields are only updated', async () => {
     // retrieve original user data
@@ -544,12 +585,35 @@ describe('PUT /users/:id', () => {
     expect(updatedUser.name).toBe(payload.name)
     expect(updatedUser.password).toBe(originalUserData.password)
   });
+
+  it('returns status code 401 when not authenticated', async () => {
+    const payload = { name: "Marcus" }
+    vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+      return res.status(401).json("Invalid token")
+    })
+
+    const res = await request(app)
+      .put(`${baseUserEndpoint}/${user.id}`)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json')
+      .send(payload);
+
+    expect(res.status).toBe(401)
+  })
 });
 
 describe('DELETE /users/:id', () => {
   let user;
   beforeEach(async () =>{
     user = users[0];
+
+    // mock successful authentication middleware
+    vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+        req.decoded = {
+        id: user.id,
+      }
+      return next()
+    })
   })
 
   // return status 200 on successful delete
@@ -566,6 +630,14 @@ describe('DELETE /users/:id', () => {
 
   // return status 404 if user not found
   it('return status 404 if user not found', async ()=>{
+    vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+      req.decoded = {
+        id: 0,
+      }
+
+      return next()
+    })
+
     const res = await request(app).delete(`${baseUserEndpoint}/0`);
 
     expect(res.status).toBe(404);
@@ -589,30 +661,58 @@ describe('DELETE /users/:id', () => {
     expect(res.status).toBe(500);
   })
 
+  it('returns status code 401 when not authenticated', async () => {
+    vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+      return res.status(401).json("Invalid token")
+    })
+
+    const res = await request(app).delete(`${baseUserEndpoint}/${user.id}`)
+
+    expect(res.status).toBe(401)
+  })
+
+  it('returns status code 403 user not authorized to delete', async () => {
+    vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+      req.decoded = {
+        id: user.id + 1,
+      }
+
+      return next()
+    })
+
+    const res = await request(app)
+      .delete(`${baseUserEndpoint}/${user.id}`)
+
+    expect(res.status).toBe(403)
+  })
 })
-
-
 
 // default argument is an empty object
 // the destructure will default to values if they dont exist in an object
 
 const convertToMockUserResponseObject = (user, genders, roles) => {
-      // keep id, name, age, email, gender, role, createdAt, updatedAt
-      delete user.password
+  // keep id, name, age, email, gender, role, createdAt, updatedAt
+  delete user.password
 
-      // rename genderId and roleId keys to gender and role
-      const { genderId: gender, rolesId: role } = user
+  // rename genderId and roleId keys to gender and role
+  const { genderId: gender, rolesId: role } = user
 
-      delete user.genderId
-      delete user.rolesId
+  delete user.genderId
+  delete user.rolesId
 
-      // use id with the names
-      user['gender'] = genders[gender] == undefined ? null : genders[gender]
-      user['role'] = roles[role]
+  // use id with the names
+  user['gender'] = genders[gender] == undefined ? null : genders[gender]
+  user['role'] = roles[role]
 
-      // convert to string since the response is in string instead of date
-      user['createdAt'] = user.createdAt.toISOString()
-      user['updatedAt'] = user.updatedAt.toISOString()
+  // convert to string since the response is in string instead of date
+  user['createdAt'] = user.createdAt.toISOString()
+  user['updatedAt'] = user.updatedAt.toISOString()
 
-      return user
+  return user
+}
+
+const generateTestToken = (userId) => {
+  jwt.sign({
+    id: userId
+  }, process.env.JWT_SECRET_KEY, { expiresIn: '1h' })
 }

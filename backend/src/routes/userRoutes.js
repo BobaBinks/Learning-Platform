@@ -2,16 +2,19 @@ import express from "express"
 import { body, query } from "express-validator";
 import { getAllUsers, createUser, updateUser, deleteUser, getUser } from '../controllers/userControllers.js';
 import { emailValidationChain, passwordValidationChain, nameValidationChain, ageValidationChain, idParamValidationChain,idBodyValidationChain } from "../utils/validationChains.js";
-import { verifyToken } from "../middleware/authMiddleware.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.get("/", verifyToken, getAllUsers);
+router.get("/", 
+    (req, res, next) => authMiddleware.verifyToken(req, res, next), 
+    getAllUsers);
 
-router.get("/:id", verifyToken, idParamValidationChain(), getUser);
+router.get("/:id",
+    (req, res, next) => authMiddleware.verifyToken(req, res, next),
+    idParamValidationChain(), getUser);
 
-router.post("/", 
-    verifyToken,
+router.post("/",
     emailValidationChain(),
     passwordValidationChain(),
     ageValidationChain(),
@@ -22,7 +25,7 @@ router.post("/",
     createUser);
 
 router.put("/:id",
-    verifyToken,
+    (req, res, next) => authMiddleware.verifyToken(req, res, next),
     idParamValidationChain(),
     nameValidationChain({ isOptional: true }),
     emailValidationChain({ isOptional: true }),
@@ -32,6 +35,9 @@ router.put("/:id",
     idBodyValidationChain({fieldname: "genderId", isOptional: true}),
     updateUser);
 
-router.delete("/:id", idParamValidationChain(), deleteUser);
+router.delete("/:id", 
+    (req, res, next) => authMiddleware.verifyToken(req, res, next),
+    idParamValidationChain(), 
+    deleteUser);
 
 export default router;

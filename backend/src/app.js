@@ -6,6 +6,8 @@ import userRoutes from './routes/userRoutes.js'
 import authRoutes from './routes/authRoutes.js'
 import cors from 'cors'
 import cookieParser from "cookie-parser";
+import authMiddleware from "./middleware/authMiddleware.js";
+
 
 
 // dotenv.config({ path: "./.env.backend" });
