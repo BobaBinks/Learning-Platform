@@ -1,11 +1,11 @@
 import db from "../config/db.js";
 import bcrypt from 'bcrypt';
 import errorFormatter from "../utils/errorFormatter.js";
+import jwt from 'jsonwebtoken'
 
 import { validationResult, matchedData } from "express-validator";
 import { eq } from "drizzle-orm";
-import { usersTable } from "../db/schema.js"
-import jwt from 'jsonwebtoken'
+import { usersTable, gendersTable, rolesTable } from "../db/schema.js"
 
 const login = async (req, res) => {
     try {
@@ -60,6 +60,50 @@ const login = async (req, res) => {
     }
 }
 
+const loggedInUser = async (req, res) => {
+    try {
+        // get public user details
+        if (Object.hasOwn(req, 'decoded') && Object.hasOwn(req.decoded, 'id')) {
+            const decoded = req.decoded
+            console.log("decoded: ", decoded)
+
+            const result = await db.select({
+                id: usersTable.id,
+                name: usersTable.name,
+                email: usersTable.email,
+                age: usersTable.age,
+                role: rolesTable.name,
+                gender: gendersTable.name,
+                createdAt: usersTable.createdAt,
+                updatedAt: usersTable.updatedAt
+            }).from(usersTable)
+                .where(eq(usersTable.id, decoded.id))
+                .leftJoin(rolesTable, eq(usersTable.rolesId, rolesTable.id))
+                .leftJoin(gendersTable, eq(usersTable.genderId, gendersTable.id))
+
+            if (result.length === 0) {
+                return res.status(404).json("User not found")
+            }
+            
+            return res.status(200).json(result[0])
+        }
+
+        return res.status(404).json('token not found')
+    } catch (error) {
+        console.log(error)
+        return res.status(500).json("Something went wrong.")
+    }
+}
+
+const logout = async (req, res) => {
+    // delete jwt token
+    res.clearCookie('jwt')
+
+    return res.status(200).json("Logged out")
+}
+
 export {
     login,
+    loggedInUser,
+    logout,
 }

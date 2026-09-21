@@ -5,11 +5,15 @@ import { resetTestDatabase, seedUsersTable } from './seed.js';
 import db from '../config/db.js';
 import bcrypt from 'bcrypt';
 import { eq } from "drizzle-orm";
-import { usersTable } from '../db/schema.js';
+import { usersTable, rolesTable, gendersTable } from '../db/schema.js';
 import jwt from 'jsonwebtoken'
+import express from 'express';
+import authMiddleware from '../middleware/authMiddleware.js';
 
 const baseAuthenticationEndpoint = '/api/auth'
 const loginEndpoint = `${baseAuthenticationEndpoint}/login`
+const logoutEndpoint = `${baseAuthenticationEndpoint}/logout`
+const loggedInUserEndpoint = `${baseAuthenticationEndpoint}/loggedInUser`
 
 let users;
 let numOfUsersToSeed = 2
@@ -23,7 +27,7 @@ afterEach(async () => {
     vi.resetAllMocks();
 })
 
-describe('Login', () => {
+describe('POST /auth/login', () => {
     let user;
     let payload;
 
@@ -122,6 +126,83 @@ describe('Login', () => {
 
         expect(result.statusCode).toBe(400)
         expect(result.body).toBe("Login Failed")
+    })
+})
+
+describe('GET /auth/logout', () => {
+    it('should call clearCookies', async () => {
+        const clearCookie = vi.spyOn(express.response, 'clearCookie')
+
+        await request(app).get(logoutEndpoint)
+
+        expect(clearCookie).toHaveBeenCalled()
+        expect(clearCookie).toHaveBeenCalledWith('jwt')
+    })
+
+    it('should return status code 200', async () => {
+        const res = await request(app).get(logoutEndpoint)
+
+        expect(res.status).toBe(200)
+    })
+})
+
+describe('GET /auth/loggedInUser', () => {
+    it('return status code 200 public user data if user in token was found in database', async () => {
+        
+        vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+            req.decoded = {
+                id: users[0].id
+            }
+            return next()
+        })
+
+        const res = await request(app).get(loggedInUserEndpoint)
+
+
+        //   query database for user results and compare
+        //   id: 80133,
+        //   name: 'Ferne Mayert',
+        //   email: 'Queen43@hotmail.com',
+        //   age: 111,
+        //   role: 'TEACHER',
+        //   gender: 'FEMALE',
+        //   createdAt: '2026-09-21T09:19:19.965Z',
+        //   updatedAt: '2026-09-21T09:19:19.965Z'
+
+        let retrieveUserResult = await db.select({
+                id: usersTable.id,
+                name: usersTable.name,
+                email: usersTable.email,
+                age: usersTable.age,
+                role: rolesTable.name,
+                gender: gendersTable.name,
+                createdAt: usersTable.createdAt,
+                updatedAt: usersTable.updatedAt
+            }).from(usersTable)
+                .where(eq(usersTable.id, users[0].id))
+                .leftJoin(rolesTable, eq(usersTable.rolesId, rolesTable.id))
+                .leftJoin(gendersTable, eq(usersTable.genderId, gendersTable.id))
+        
+        expect(res.status).toBe(200)
+        
+        retrieveUserResult = retrieveUserResult[0]
+        retrieveUserResult.createdAt = retrieveUserResult.createdAt.toJSON()
+        retrieveUserResult.updatedAt = retrieveUserResult.updatedAt.toJSON()
+
+        expect(res.body).toMatchObject(retrieveUserResult)
+        
+    })
+
+    it('return status code 404 and message if decoded token was not provided in request', async () => {
+
+    })
+
+    it('returns status code 500 on database failure', async () => {
+
+    })
+
+    it('returns status code 404 and message if user not found', async () => {
+        
     })
 })
 
