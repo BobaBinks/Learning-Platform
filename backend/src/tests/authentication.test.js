@@ -9,6 +9,7 @@ import { usersTable, rolesTable, gendersTable } from '../db/schema.js';
 import jwt from 'jsonwebtoken'
 import express from 'express';
 import authMiddleware from '../middleware/authMiddleware.js';
+import { log } from 'console';
 
 const baseAuthenticationEndpoint = '/api/auth'
 const loginEndpoint = `${baseAuthenticationEndpoint}/login`
@@ -143,6 +144,7 @@ describe('GET /auth/logout', () => {
         const res = await request(app).get(logoutEndpoint)
 
         expect(res.status).toBe(200)
+        expect(res.body).toBe('Logged out')
     })
 })
 
@@ -157,17 +159,6 @@ describe('GET /auth/loggedInUser', () => {
         })
 
         const res = await request(app).get(loggedInUserEndpoint)
-
-
-        //   query database for user results and compare
-        //   id: 80133,
-        //   name: 'Ferne Mayert',
-        //   email: 'Queen43@hotmail.com',
-        //   age: 111,
-        //   role: 'TEACHER',
-        //   gender: 'FEMALE',
-        //   createdAt: '2026-09-21T09:19:19.965Z',
-        //   updatedAt: '2026-09-21T09:19:19.965Z'
 
         let retrieveUserResult = await db.select({
                 id: usersTable.id,
@@ -194,15 +185,46 @@ describe('GET /auth/loggedInUser', () => {
     })
 
     it('return status code 404 and message if decoded token was not provided in request', async () => {
+        vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+            next()
+        })
 
+        const res = await request(app).get(loggedInUserEndpoint)
+        expect(res.status).toBe(404)
+        expect(res.body).toBe('Token not found')
     })
 
     it('returns status code 500 on database failure', async () => {
+        vi.spyOn(db, 'select').mockImplementation(() => {
+            throw new Error("Simulating database error")
+        })
 
+        vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+            req.decoded = {
+                id: users[0].id
+            }
+            next()
+        })
+
+        const res = await request(app).get(loggedInUserEndpoint)
+
+        expect(res.status).toBe(500)
+        expect(res.body).toBe("Something went wrong.")
     })
 
     it('returns status code 404 and message if user not found', async () => {
-        
+        vi.spyOn(authMiddleware, 'verifyToken').mockImplementation((req, res, next) => {
+            const invalidId = 0
+            req.decoded = {
+                id: invalidId
+            }
+            next()
+        })
+
+        const res = await request(app).get(loggedInUserEndpoint)
+
+        expect(res.status).toBe(404)
+        expect(res.body).toBe("User not found")
     })
 })
 
