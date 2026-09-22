@@ -39,6 +39,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+        cache-dependency-path: 'backend/package-lock.json'
 
     - name: Install backend dependencies
       working-directory: backend
