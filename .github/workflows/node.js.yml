@@ -20,7 +20,7 @@ jobs:
           POSTGRES_PASSWORD: testpass
           POSTGRES_DB: coursera_clone_test
         ports:
-          - 5433:5433
+          - 5432:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -33,17 +33,25 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
     - name: Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    - name: Install dependencies
+
+    - name: Install backend dependencies
+    - working-directory: backend
       run: npm ci
+
     - name: Run migrations
+    - working-directory: backend    
       run: npm run migrate
       env:
         NODE_ENV: test
-        POSTGRESQL_TEST_DATABASE_URL: postgresql://postgres:testpass@5433:5433/coursera_clone_test
+        POSTGRESQL_TEST_DATABASE_URL: postgresql://postgres:testpass@5432:5432/coursera_clone_test
         JWT_SECRET_KEY: secrets.JWT_SECRET_KEY
+
+    - name: Run backend tests
+    - working-directory: backend
     - run: npm test
