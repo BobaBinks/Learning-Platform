@@ -49,13 +49,14 @@ jobs:
       working-directory: backend    
       run: npm run migrate
       env:
-        NODE_ENV: test
+        NODE_ENV: 'test'
         POSTGRESQL_TEST_DATABASE_URL: postgresql://postgres:testpass@localhost:5432/coursera_clone_test
-        JWT_SECRET_KEY: ${{secrets.JWT_SECRET_KEY}}
+
 
     - name: Run backend tests
       working-directory: backend
       run: npm run test
       env:
         NODE_ENV: 'test'
-        POSTGRESQL_TEST_DATABASE_URL: ${{secrets.POSTGRESQL_TEST_DATABASE_URL}}
+        POSTGRESQL_TEST_DATABASE_URL: postgresql://postgres:testpass@localhost:5432/coursera_clone_test
+        JWT_SECRET_KEY: ${{secrets.JWT_SECRET_KEY}}
